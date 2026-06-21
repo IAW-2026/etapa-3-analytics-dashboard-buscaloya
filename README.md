@@ -8,3 +8,15 @@ Herramienta de reportes consolidados (Etapa 3): métricas del sistema completo c
 ---
 
 Enunciado completo: <https://iaw-2026.github.io/proyecto/>
+
+## Getting Started
+
+First, run the development server:
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
