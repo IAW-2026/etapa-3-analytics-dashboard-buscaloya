@@ -29,6 +29,28 @@ interface TopBuyer {
   total_spent: number;
 }
 
+interface TopSellingStore {
+  store_id: string;
+  store_name: string;
+  total_orders: number;
+  total_revenue: number;
+}
+
+interface TopProductPerStore {
+  store_name: string;
+  store_id: string;
+  product_id: string;
+  product_name: string;
+  total_quantity_sold: number;
+  total_product_revenue: number;
+}
+
+interface SellerAnalyticsData {
+  module: string;
+  top_selling_stores: TopSellingStore[];
+  top_product_per_store: TopProductPerStore[];
+}
+
 interface BuyerAnalyticsData {
   active_users_per_day: ActiveUsersDay[];
   activity_by_hour: ActivityHour[];
@@ -75,9 +97,32 @@ async function getBuyerAnalytics(): Promise<BuyerAnalyticsData | null> {
   }
 }
 
+async function getSellerAnalytics(): Promise<SellerAnalyticsData | null> {
+  const baseUrl = process.env.SELLER_APP_URL || 'https://proyecto-b-seller-buscaloya.vercel.app';
+  const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  const url = `${cleanBase}/api/seller/analitycs`;
+  const token = process.env.SELLER_SERVICE_SECRET;
+  try {
+    const res = await fetch(url, { 
+      cache: 'no-store',
+      headers: {
+        'Authorization': `Bearer ${token || ''}`
+      }
+    });
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    return await res.json();
+  } catch (error) {
+    console.error('Error fetching seller analytics:', error);
+    return null;
+  }
+}
+
 export default async function Dashboard() {
   const deliveryData = await getDeliveryAnalytics();
   const buyerData = await getBuyerAnalytics();
+  const sellerData = await getSellerAnalytics();
 
   // Cálculos del módulo Buyer (Comprador)
   const lastActiveCount = (buyerData?.active_users_per_day && buyerData.active_users_per_day.length > 0)
@@ -93,26 +138,45 @@ export default async function Dashboard() {
     ? `${buyerData.activity_by_hour[0].hour}:00hs`
     : 'N/A';
 
+  // Cálculos del módulo Seller (Vendedor)
+  const totalStores = sellerData?.top_selling_stores?.length || 0;
+  const totalSellerOrders = sellerData?.top_selling_stores
+    ? sellerData.top_selling_stores.reduce((acc: number, curr: TopSellingStore) => acc + curr.total_orders, 0)
+    : 0;
+  const topStoreName = sellerData?.top_selling_stores?.[0]
+    ? `${sellerData.top_selling_stores[0].store_name.split(' ')[0]} ($${Math.round(sellerData.top_selling_stores[0].total_revenue)})`
+    : 'N/A';
+
   // Mocks de información para simular las llamadas a APIs de cada módulo en la etapa 3
   const modules = [
     {
       id: 'seller',
       name: 'Seller Module',
       code: 'SELL_MOD_01',
-      status: 'ONLINE',
-      color: 'neon', // brand-neon
-      apiEndpoint: 'https://proyecto-b-seller-buscaloya.vercel.app/api/seller',
-      metrics: [
+      status: sellerData ? 'ONLINE' : 'OFFLINE (FALLBACK)',
+      color: sellerData ? 'neon' : 'safety',
+      apiEndpoint: process.env.SELLER_APP_URL 
+        ? `${process.env.SELLER_APP_URL.endsWith('/') ? process.env.SELLER_APP_URL.slice(0, -1) : process.env.SELLER_APP_URL}/api/seller/analitycs`
+        : 'https://proyecto-b-seller-buscaloya.vercel.app/api/seller/analitycs',
+      metrics: sellerData ? [
+        { label: 'TIENDAS CON VENTAS', value: `${totalStores}` },
+        { label: 'PAQUETES VENDIDOS', value: `${totalSellerOrders}` },
+        { label: 'TIENDA LÍDER', value: topStoreName },
+      ] : [
         { label: 'TIENDAS REGISTRADAS', value: '14' },
         { label: 'PAQUETES DESPACHADOS', value: '312' },
         { label: 'STOCK CRÍTICO', value: '3 ITEMS', warning: true },
       ],
-      logs: [
+      logs: sellerData ? [
+        `Tienda líder: ${sellerData.top_selling_stores[0]?.store_name || 'N/A'} ($${sellerData.top_selling_stores[0]?.total_revenue || 0})`,
+        `Producto top: ${sellerData.top_product_per_store[0]?.product_name || 'N/A'} (${sellerData.top_product_per_store[0]?.total_quantity_sold || 0} uds)`,
+        `Total tiendas en red: ${sellerData.top_selling_stores.length}`,
+      ] : [
         'Fetching stores list... OK',
         'Validating dispatch webhooks... SECURE',
         'Package #a6152fe0 dispatch confirmed... OK',
       ],
-      progress: 80,
+      progress: sellerData ? 100 : 80,
     },
     {
       id: 'buyer',
