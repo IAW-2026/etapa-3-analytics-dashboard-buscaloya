@@ -3,6 +3,7 @@
  * DESCRIPCIÓN: Pantalla de bienvenida del módulo Analytics.
  * ESTÉTICA: Brutalista / Cyberpunk — Alto Contraste, Cuadrícula Rota, Tipografía Masiva, Velocidad F1.
  */
+import Link from 'next/link';
 
 export default function Home() {
   return (
@@ -103,12 +104,9 @@ export default function Home() {
 
           {/* Botones — Feedback Visual F1 */}
           <div className="animate-slide-in-up flex flex-col sm:flex-row gap-4">
-            <button className="bg-brand-neon text-black font-mono font-bold uppercase px-8 py-4 text-sm tracking-wider border-2 border-brand-neon hover:bg-black hover:text-brand-neon transition-all duration-100">
+            <Link href="/dashboard" className="bg-brand-neon text-black font-mono font-bold uppercase px-8 py-4 text-sm tracking-wider border-2 border-brand-neon hover:bg-black hover:text-brand-neon transition-all duration-100 text-center">
               ▶ Iniciar Sistema
-            </button>
-            <button className="brutalist-button-white px-8 py-4 text-sm tracking-wider">
-              ◇ Ver Reportes
-            </button>
+            </Link>
           </div>
         </div>
       </main>
