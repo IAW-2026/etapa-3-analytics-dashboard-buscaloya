@@ -56,7 +56,7 @@ async function getDeliveryAnalytics() {
 async function getBuyerAnalytics(): Promise<BuyerAnalyticsData | null> {
   const baseUrl = process.env.BUYER_APP_URL || 'https://proyecto-b-buyer-buscaloya.vercel.app';
   const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-  const url = `${cleanBase}/api`;
+  const url = `${cleanBase}/api/analytics`;
   const token = process.env.BUYER_SERVICE_SECRET;
   try {
     const res = await fetch(url, { 
@@ -121,8 +121,8 @@ export default async function Dashboard() {
       status: buyerData ? 'ONLINE' : 'OFFLINE (FALLBACK)',
       color: buyerData ? 'neon' : 'safety',
       apiEndpoint: process.env.BUYER_APP_URL 
-        ? `${process.env.BUYER_APP_URL.endsWith('/') ? process.env.BUYER_APP_URL.slice(0, -1) : process.env.BUYER_APP_URL}/api`
-        : 'https://proyecto-b-buyer-buscaloya.vercel.app/api',
+        ? `${process.env.BUYER_APP_URL.endsWith('/') ? process.env.BUYER_APP_URL.slice(0, -1) : process.env.BUYER_APP_URL}/api/analytics`
+        : 'https://proyecto-b-buyer-buscaloya.vercel.app/api/analytics',
       metrics: buyerData ? [
         { label: 'ACTIVOS (ÚLT. DÍA)', value: `${lastActiveCount}` },
         { label: 'NUEVOS (30 DÍAS)', value: `${buyerNew30d}` },
