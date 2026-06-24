@@ -59,6 +59,23 @@ interface BuyerAnalyticsData {
   top_buyers_by_amount: TopBuyer[];
 }
 
+interface RecentPaymentTransaction {
+  order_id: string;
+  status: string;
+  total_amount: number;
+  created_at: string;
+}
+
+interface PaymentsAnalyticsData {
+  module: string;
+  total_revenue: number;
+  total_escrow: number;
+  total_transactions: number;
+  status_counts: Record<string, number>;
+  status_amounts: Record<string, number>;
+  recent_transactions: RecentPaymentTransaction[];
+}
+
 async function getDeliveryAnalytics() {
   const baseUrl = process.env.DELIVERY_APP_URL || 'https://proyecto-b-delivery-buscaloya.vercel.app';
   const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
@@ -119,10 +136,33 @@ async function getSellerAnalytics(): Promise<SellerAnalyticsData | null> {
   }
 }
 
+async function getPaymentsAnalytics(): Promise<PaymentsAnalyticsData | null> {
+  const baseUrl = process.env.PAYMENTS_APP_URL || 'https://proyecto-b-payments-buscaloya.vercel.app';
+  const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  const url = `${cleanBase}/api/analytics`;
+  const token = process.env.PAYMENTS_SERVICE_SECRET;
+  try {
+    const res = await fetch(url, { 
+      cache: 'no-store',
+      headers: {
+        'Authorization': `Bearer ${token || ''}`
+      }
+    });
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    return await res.json();
+  } catch (error) {
+    console.error('Error fetching payments analytics:', error);
+    return null;
+  }
+}
+
 export default async function Dashboard() {
   const deliveryData = await getDeliveryAnalytics();
   const buyerData = await getBuyerAnalytics();
   const sellerData = await getSellerAnalytics();
+  const paymentsData = await getPaymentsAnalytics();
 
   // Cálculos del módulo Buyer (Comprador)
   const lastActiveCount = (buyerData?.active_users_per_day && buyerData.active_users_per_day.length > 0)
@@ -146,6 +186,11 @@ export default async function Dashboard() {
   const topStoreName = sellerData?.top_selling_stores?.[0]
     ? `${sellerData.top_selling_stores[0].store_name.split(' ')[0]} ($${Math.round(sellerData.top_selling_stores[0].total_revenue)})`
     : 'N/A';
+
+  // Cálculos del módulo Payments (Pagos)
+  const totalRevenue = paymentsData?.total_revenue || 0;
+  const totalEscrow = paymentsData?.total_escrow || 0;
+  const totalTransactions = paymentsData?.total_transactions || 0;
 
   // Mocks de información para simular las llamadas a APIs de cada módulo en la etapa 3
   const modules = [
@@ -211,20 +256,30 @@ export default async function Dashboard() {
       id: 'payments',
       name: 'Payments Module',
       code: 'PAY_MOD_03',
-      status: 'ONLINE',
-      color: 'safety', // brand-safety (naranja)
-      apiEndpoint: 'http://localhost:5000/api/payments',
-      metrics: [
+      status: paymentsData ? 'ONLINE' : 'OFFLINE (FALLBACK)',
+      color: paymentsData ? 'neon' : 'safety',
+      apiEndpoint: process.env.PAYMENTS_APP_URL 
+        ? `${process.env.PAYMENTS_APP_URL.endsWith('/') ? process.env.PAYMENTS_APP_URL.slice(0, -1) : process.env.PAYMENTS_APP_URL}/api/analytics`
+        : 'https://proyecto-b-payments-buscaloya.vercel.app/api/analytics',
+      metrics: paymentsData ? [
+        { label: 'TRANSACCIONES PROCESADAS', value: `${totalTransactions}` },
+        { label: 'INGRESOS CONFIRMADOS', value: `$${totalRevenue.toLocaleString('es-AR')} ARS` },
+        { label: 'FONDOS EN ESCROW', value: `$${totalEscrow.toLocaleString('es-AR')} ARS`, warning: totalEscrow > 100000 },
+      ] : [
         { label: 'TRANSACCIONES PROCESADAS', value: '1,429' },
         { label: 'FONDOS EN ESCROW', value: '$840,500 ARS' },
         { label: 'DISPUTAS ACTIVAS', value: '0', warning: false },
       ],
-      logs: [
+      logs: paymentsData ? [
+        `Último pago: $${paymentsData.recent_transactions[0]?.total_amount || 0} (${paymentsData.recent_transactions[0]?.status || 'N/A'})`,
+        `Transacciones fallidas: ${paymentsData.status_counts.failed || 0} operaciones`,
+        `Cuentas cerradas / completadas: ${paymentsData.status_counts.closed || 0}`,
+      ] : [
         'Escrow verification sequence loaded... OK',
         'Checking pending releases... SYNCED',
         'Payments ledger integrity validation... SECURE',
       ],
-      progress: 65,
+      progress: paymentsData ? 100 : 65,
     },
     {
       id: 'delivery',
