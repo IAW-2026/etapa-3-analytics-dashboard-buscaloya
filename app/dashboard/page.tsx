@@ -253,9 +253,10 @@ export default async function Dashboard() {
             const bgHover = isNeon ? 'hover:shadow-[8px_8px_0px_rgba(0,255,0,0.15)]' : 'hover:shadow-[8px_8px_0px_rgba(255,77,0,0.15)]';
             
             return (
-              <div 
+              <Link 
+                href={`/dashboard/detail/${mod.id}`}
                 key={mod.id} 
-                className={`bg-zinc-950 border-2 border-white/10 hover:border-current transition-all duration-150 flex flex-col justify-between min-h-[360px] p-6 shadow-[6px_6px_0px_rgba(255,255,255,0.03)] ${accentClass} ${bgHover}`}
+                className={`bg-zinc-950 border-2 border-white/10 hover:border-current transition-all duration-150 flex flex-col justify-between min-h-[360px] p-6 shadow-[6px_6px_0px_rgba(255,255,255,0.03)] cursor-pointer block ${accentClass} ${bgHover}`}
               >
                 
                 {/* Cabecera del Módulo */}
@@ -310,7 +311,7 @@ export default async function Dashboard() {
                   </span>
                 </div>
 
-              </div>
+              </Link>
             );
           })}
         </div>
