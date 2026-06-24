@@ -4,169 +4,68 @@
  * ESTÉTICA: Brutalista / Cyberpunk — Grillas asimétricas, terminales interactivos, barras de progreso y colores de alerta.
  */
 import Link from 'next/link';
+import {
+  getDeliveryAnalytics,
+  getBuyerAnalytics,
+  getSellerAnalytics,
+  getPaymentsAnalytics,
+  ActivityHour,
+  NewUsersDay,
+  TopSellingStore,
+  SellerAnalyticsData,
+  BuyerAnalyticsData,
+  PaymentsAnalyticsData,
+  DeliveryAnalyticsData,
+  DashboardModule
+} from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
-interface ActiveUsersDay {
-  date: string;
-  active_users: number;
+// ── MODULE BUILDERS (MODULAR FUNCTIONS) ──
+
+function formatSellerModule(sellerData: SellerAnalyticsData | null): DashboardModule {
+  const totalStores = sellerData?.top_selling_stores?.length || 0;
+  const totalSellerOrders = sellerData?.top_selling_stores
+    ? sellerData.top_selling_stores.reduce((acc: number, curr: TopSellingStore) => acc + curr.total_orders, 0)
+    : 0;
+  const topStoreName = sellerData?.top_selling_stores?.[0]
+    ? `${sellerData.top_selling_stores[0].store_name.split(' ')[0]} ($${Math.round(sellerData.top_selling_stores[0].total_revenue)})`
+    : 'N/A';
+
+  return {
+    id: 'seller',
+    name: 'Seller Module',
+    code: 'SELL_MOD_01',
+    status: sellerData ? 'ONLINE' : 'OFFLINE (FALLBACK)',
+    color: sellerData ? 'neon' : 'safety',
+    apiEndpoint: process.env.SELLER_APP_URL 
+      ? `${process.env.SELLER_APP_URL.endsWith('/') ? process.env.SELLER_APP_URL.slice(0, -1) : process.env.SELLER_APP_URL}/api/seller/analytics`
+      : 'https://proyecto-b-seller-buscaloya.vercel.app/api/seller/analytics',
+    metrics: sellerData ? [
+      { label: 'TIENDAS CON VENTAS', value: `${totalStores}` },
+      { label: 'PAQUETES VENDIDOS', value: `${totalSellerOrders}` },
+      { label: 'TIENDA LÍDER', value: topStoreName },
+    ] : [
+      { label: 'TIENDAS REGISTRADAS', value: '14' },
+      { label: 'PAQUETES DESPACHADOS', value: '312' },
+      { label: 'STOCK CRÍTICO', value: '3 ITEMS', warning: true },
+    ],
+    logs: sellerData ? [
+      `Tienda líder: ${sellerData.top_selling_stores[0]?.store_name || 'N/A'} ($${sellerData.top_selling_stores[0]?.total_revenue || 0})`,
+      `Producto top: ${sellerData.top_product_per_store[0]?.product_name || 'N/A'} (${sellerData.top_product_per_store[0]?.total_quantity_sold || 0} uds)`,
+      `Total tiendas en red: ${sellerData.top_selling_stores.length}`,
+    ] : [
+      'Fetching stores list... OK',
+      'Validating dispatch webhooks... SECURE',
+      'Package #a6152fe0 dispatch confirmed... OK',
+    ],
+    progress: sellerData ? 100 : 80,
+  };
 }
 
-interface ActivityHour {
-  hour: number;
-  activity_count: number;
-}
-
-interface NewUsersDay {
-  date: string;
-  new_users: number;
-}
-
-interface TopBuyer {
-  name: string;
-  email: string;
-  total_purchases: number;
-  total_spent: number;
-}
-
-interface TopSellingStore {
-  store_id: string;
-  store_name: string;
-  total_orders: number;
-  total_revenue: number;
-}
-
-interface TopProductPerStore {
-  store_name: string;
-  store_id: string;
-  product_id: string;
-  product_name: string;
-  total_quantity_sold: number;
-  total_product_revenue: number;
-}
-
-interface SellerAnalyticsData {
-  module: string;
-  top_selling_stores: TopSellingStore[];
-  top_product_per_store: TopProductPerStore[];
-}
-
-interface BuyerAnalyticsData {
-  active_users_per_day: ActiveUsersDay[];
-  activity_by_hour: ActivityHour[];
-  new_users_per_day: NewUsersDay[];
-  top_buyers_by_purchases: TopBuyer[];
-  top_buyers_by_amount: TopBuyer[];
-}
-
-interface RecentPaymentTransaction {
-  order_id: string;
-  status: string;
-  total_amount: number;
-  created_at: string;
-}
-
-interface PaymentsAnalyticsData {
-  module: string;
-  total_revenue: number;
-  total_escrow: number;
-  total_transactions: number;
-  status_counts: Record<string, number>;
-  status_amounts: Record<string, number>;
-  recent_transactions: RecentPaymentTransaction[];
-}
-
-async function getDeliveryAnalytics() {
-  const baseUrl = process.env.DELIVERY_APP_URL || 'https://proyecto-b-delivery-buscaloya.vercel.app';
-  const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-  const url = `${cleanBase}/api/analytics`;
-  try {
-    const res = await fetch(url, { cache: 'no-store' });
-    if (!res.ok) {
-      throw new Error(`HTTP error! status: ${res.status}`);
-    }
-    return await res.json();
-  } catch (error) {
-    console.error('Error fetching delivery analytics:', error);
-    return null;
-  }
-}
-
-async function getBuyerAnalytics(): Promise<BuyerAnalyticsData | null> {
-  const baseUrl = process.env.BUYER_APP_URL || 'https://proyecto-b-buyer-buscaloya.vercel.app';
-  const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-  const url = `${cleanBase}/api/analytics`;
-  const token = process.env.BUYER_SERVICE_SECRET;
-  try {
-    const res = await fetch(url, {
-      cache: 'no-store',
-      headers: {
-        'Authorization': `Bearer ${token || ''}`
-      }
-    });
-    if (!res.ok) {
-      throw new Error(`HTTP error! status: ${res.status}`);
-    }
-    return await res.json();
-  } catch (error) {
-    console.error('Error fetching buyer analytics:', error);
-    return null;
-  }
-}
-
-async function getSellerAnalytics(): Promise<SellerAnalyticsData | null> {
-  const baseUrl = process.env.SELLER_APP_URL || 'https://proyecto-b-seller-buscaloya.vercel.app';
-  const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-  const url = `${cleanBase}/api/seller/analytics`;
-  const token = process.env.SELLER_API_KEY || process.env.SELLER_SERVICE_SECRET;
-  try {
-    const res = await fetch(url, {
-      cache: 'no-store',
-      headers: {
-        'Authorization': `Bearer ${token || ''}`
-      }
-    });
-    if (!res.ok) {
-      throw new Error(`HTTP error! status: ${res.status}`);
-    }
-    return await res.json();
-  } catch (error) {
-    console.error('Error fetching seller analytics:', error);
-    return null;
-  }
-}
-
-async function getPaymentsAnalytics(): Promise<PaymentsAnalyticsData | null> {
-  const baseUrl = process.env.PAYMENTS_APP_URL || 'https://proyecto-b-payments-buscaloya.vercel.app';
-  const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-  const url = `${cleanBase}/api/analytics`;
-  const token = process.env.PAYMENTS_SERVICE_SECRET;
-  try {
-    const res = await fetch(url, { 
-      cache: 'no-store',
-      headers: {
-        'Authorization': `Bearer ${token || ''}`
-      }
-    });
-    if (!res.ok) {
-      throw new Error(`HTTP error! status: ${res.status}`);
-    }
-    return await res.json();
-  } catch (error) {
-    console.error('Error fetching payments analytics:', error);
-    return null;
-  }
-}
-
-export default async function Dashboard() {
-  const deliveryData = await getDeliveryAnalytics();
-  const buyerData = await getBuyerAnalytics();
-  const sellerData = await getSellerAnalytics();
-  const paymentsData = await getPaymentsAnalytics();
-
-  // Cálculos del módulo Buyer (Comprador)
+function formatBuyerModule(buyerData: BuyerAnalyticsData | null): DashboardModule {
   const lastActiveCount = (buyerData?.active_users_per_day && buyerData.active_users_per_day.length > 0)
-    ? buyerData.active_users_per_day[buyerData.active_users_per_day.length - 1].active_users
+    ? buyerData.active_users_per_day[buyerData.active_users_per_day.length - 1].active_users 
     : 0;
   const buyerNew30d = buyerData?.new_users_per_day
     ? buyerData.new_users_per_day.reduce((acc: number, curr: NewUsersDay) => acc + curr.new_users, 0)
@@ -178,155 +77,138 @@ export default async function Dashboard() {
     ? `${buyerData.activity_by_hour[0].hour}:00hs`
     : 'N/A';
 
-  // Cálculos del módulo Seller (Vendedor)
-  const totalStores = sellerData?.top_selling_stores?.length || 0;
-  const totalSellerOrders = sellerData?.top_selling_stores
-    ? sellerData.top_selling_stores.reduce((acc: number, curr: TopSellingStore) => acc + curr.total_orders, 0)
-    : 0;
-  const topStoreName = sellerData?.top_selling_stores?.[0]
-    ? `${sellerData.top_selling_stores[0].store_name.split(' ')[0]} ($${Math.round(sellerData.top_selling_stores[0].total_revenue)})`
-    : 'N/A';
+  return {
+    id: 'buyer',
+    name: 'Buyer Module',
+    code: 'BUY_MOD_02',
+    status: buyerData ? 'ONLINE' : 'OFFLINE (FALLBACK)',
+    color: buyerData ? 'neon' : 'safety',
+    apiEndpoint: process.env.BUYER_APP_URL 
+      ? `${process.env.BUYER_APP_URL.endsWith('/') ? process.env.BUYER_APP_URL.slice(0, -1) : process.env.BUYER_APP_URL}/api/analytics`
+      : 'https://proyecto-b-buyer-buscaloya.vercel.app/api/analytics',
+    metrics: buyerData ? [
+      { label: 'ACTIVOS (ÚLT. DÍA)', value: `${lastActiveCount}` },
+      { label: 'NUEVOS (30 DÍAS)', value: `${buyerNew30d}` },
+      { label: 'TOP COMPRADOR', value: topSpenderName },
+    ] : [
+      { label: 'CLIENTES CONECTADOS', value: '458' },
+      { label: 'CARRITOS ACTIVOS', value: '32' },
+      { label: 'VALORACIONES (CSAT)', value: '4.85 / 5.00' },
+    ],
+    logs: buyerData ? [
+      `Hora pico tráfico: ${topHour} (${buyerData.activity_by_hour[0]?.activity_count || 0} eventos)`,
+      `Top Compras: ${buyerData.top_buyers_by_purchases[0]?.name || 'N/A'} (${buyerData.top_buyers_by_purchases[0]?.total_purchases || 0} ord.)`,
+      `Actividad total logs: ${buyerData.activity_by_hour.reduce((acc: number, curr: ActivityHour) => acc + curr.activity_count, 0)} reg.`,
+    ] : [
+      'Establishing client-side websocket links... OK',
+      'Syncing buyer order tracker... ONLINE',
+      'Telemetry feedback listener active... OK',
+    ],
+    progress: buyerData ? 100 : 95,
+  };
+}
 
-  // Cálculos del módulo Payments (Pagos)
+function formatPaymentsModule(paymentsData: PaymentsAnalyticsData | null): DashboardModule {
   const totalRevenue = paymentsData?.total_revenue || 0;
   const totalEscrow = paymentsData?.total_escrow || 0;
   const totalTransactions = paymentsData?.total_transactions || 0;
 
-  // Mocks de información para simular las llamadas a APIs de cada módulo en la etapa 3
+  return {
+    id: 'payments',
+    name: 'Payments Module',
+    code: 'PAY_MOD_03',
+    status: paymentsData ? 'ONLINE' : 'OFFLINE (FALLBACK)',
+    color: paymentsData ? 'neon' : 'safety',
+    apiEndpoint: process.env.PAYMENTS_APP_URL 
+      ? `${process.env.PAYMENTS_APP_URL.endsWith('/') ? process.env.PAYMENTS_APP_URL.slice(0, -1) : process.env.PAYMENTS_APP_URL}/api/analytics`
+      : 'https://proyecto-b-payments-buscaloya.vercel.app/api/analytics',
+    metrics: paymentsData ? [
+      { label: 'TRANSACCIONES PROCESADAS', value: `${totalTransactions}` },
+      { label: 'INGRESOS CONFIRMADOS', value: `$${totalRevenue.toLocaleString('es-AR')} ARS` },
+      { label: 'FONDOS EN ESCROW', value: `$${totalEscrow.toLocaleString('es-AR')} ARS`, warning: totalEscrow > 100000 },
+    ] : [
+      { label: 'TRANSACCIONES PROCESADAS', value: '1,429' },
+      { label: 'FONDOS EN ESCROW', value: '$840,500 ARS' },
+      { label: 'DISPUTAS ACTIVAS', value: '0', warning: false },
+    ],
+    logs: paymentsData ? [
+      `Último pago: $${paymentsData.recent_transactions[0]?.total_amount || 0} (${paymentsData.recent_transactions[0]?.status || 'N/A'})`,
+      `Transacciones fallidas: ${paymentsData.status_counts.failed || 0} operaciones`,
+      `Cuentas cerradas / completadas: ${paymentsData.status_counts.closed || 0}`,
+    ] : [
+      'Escrow verification sequence loaded... OK',
+      'Checking pending releases... SYNCED',
+      'Payments ledger integrity validation... SECURE',
+    ],
+    progress: paymentsData ? 100 : 65,
+  };
+}
+
+function formatDeliveryModule(deliveryData: DeliveryAnalyticsData | null): DashboardModule {
+  return {
+    id: 'delivery',
+    name: 'Delivery Module',
+    code: 'DEL_MOD_04',
+    status: deliveryData ? 'ONLINE' : 'OFFLINE (FALLBACK)',
+    color: deliveryData ? 'neon' : 'safety',
+    apiEndpoint: process.env.DELIVERY_APP_URL 
+      ? `${process.env.DELIVERY_APP_URL.endsWith('/') ? process.env.DELIVERY_APP_URL.slice(0, -1) : process.env.DELIVERY_APP_URL}/api/analytics`
+      : 'https://proyecto-b-delivery-buscaloya.vercel.app/api/analytics',
+    metrics: deliveryData ? [
+      { label: 'TASA DE ÉXITO', value: `${(deliveryData.success_rate.rate * 100).toFixed(1)}%` },
+      { label: 'ACTIVAS / TOTAL', value: `${deliveryData.success_rate.active} / ${deliveryData.success_rate.total}` },
+      { label: 'DISTANCIA PROM.', value: `${deliveryData.delivery_distances.average_distance} uds` },
+    ] : [
+      { label: 'DRONES EN FLOTA (ADMIN)', value: '6 UNIDADES' },
+      { label: 'MISIONES ACTIVAS (RADAR)', value: '2 VUELOS' },
+      { label: 'PROMEDIO BATERÍA', value: '87%' },
+    ],
+    logs: deliveryData ? [
+      `Envíos: ${deliveryData.success_rate.delivered} completados | ${deliveryData.success_rate.cancelled} cancelados`,
+      `Flota: ${deliveryData.courier_activity_status.ASSIGNED} volando | ${deliveryData.courier_activity_status.AVAILABLE} disponibles`,
+      `Alta demanda: ${deliveryData.high_demand_zones[0]?.buyer_address ? deliveryData.high_demand_zones[0].buyer_address.slice(0, 20) + '...' : 'NINGUNA'}`,
+    ] : [
+      'Connecting to Supabase Realtime channel... OK',
+      'Drone #3 telemetry sync lock acquired... OK',
+      'Mission status CANCELLED_SUCCESSFULLY mapped... OK',
+    ],
+    progress: deliveryData ? Math.round(deliveryData.success_rate.rate * 100) : 87,
+  };
+}
+
+// ── MAIN COMPONENT ──
+
+export default async function Dashboard() {
+  // Paralelización de peticiones para rendimiento y latencia ultrabaja
+  const [deliveryData, buyerData, sellerData, paymentsData] = await Promise.all([
+    getDeliveryAnalytics(),
+    getBuyerAnalytics(),
+    getSellerAnalytics(),
+    getPaymentsAnalytics(),
+  ]);
+
   const modules = [
-    {
-      id: 'seller',
-      name: 'Seller Module',
-      code: 'SELL_MOD_01',
-      status: sellerData ? 'ONLINE' : 'OFFLINE (FALLBACK)',
-      color: sellerData ? 'neon' : 'safety',
-      apiEndpoint: process.env.SELLER_APP_URL 
-        ? `${process.env.SELLER_APP_URL.endsWith('/') ? process.env.SELLER_APP_URL.slice(0, -1) : process.env.SELLER_APP_URL}/api/seller/analytics`
-        : 'https://proyecto-b-seller-buscaloya.vercel.app/api/seller/analytics',
-      metrics: sellerData ? [
-        { label: 'TIENDAS CON VENTAS', value: `${totalStores}` },
-        { label: 'PAQUETES VENDIDOS', value: `${totalSellerOrders}` },
-        { label: 'TIENDA LÍDER', value: topStoreName },
-      ] : [
-        { label: 'TIENDAS REGISTRADAS', value: '14' },
-        { label: 'PAQUETES DESPACHADOS', value: '312' },
-        { label: 'STOCK CRÍTICO', value: '3 ITEMS', warning: true },
-      ],
-      logs: sellerData ? [
-        `Tienda líder: ${sellerData.top_selling_stores[0]?.store_name || 'N/A'} ($${sellerData.top_selling_stores[0]?.total_revenue || 0})`,
-        `Producto top: ${sellerData.top_product_per_store[0]?.product_name || 'N/A'} (${sellerData.top_product_per_store[0]?.total_quantity_sold || 0} uds)`,
-        `Total tiendas en red: ${sellerData.top_selling_stores.length}`,
-      ] : [
-        'Fetching stores list... OK',
-        'Validating dispatch webhooks... SECURE',
-        'Package #a6152fe0 dispatch confirmed... OK',
-      ],
-      progress: sellerData ? 100 : 80,
-    },
-    {
-      id: 'buyer',
-      name: 'Buyer Module',
-      code: 'BUY_MOD_02',
-      status: buyerData ? 'ONLINE' : 'OFFLINE (FALLBACK)',
-      color: buyerData ? 'neon' : 'safety',
-      apiEndpoint: process.env.BUYER_APP_URL
-        ? `${process.env.BUYER_APP_URL.endsWith('/') ? process.env.BUYER_APP_URL.slice(0, -1) : process.env.BUYER_APP_URL}/api/analytics`
-        : 'https://proyecto-b-buyer-buscaloya.vercel.app/api/analytics',
-      metrics: buyerData ? [
-        { label: 'ACTIVOS (ÚLT. DÍA)', value: `${lastActiveCount}` },
-        { label: 'NUEVOS (30 DÍAS)', value: `${buyerNew30d}` },
-        { label: 'TOP COMPRADOR', value: topSpenderName },
-      ] : [
-        { label: 'CLIENTES CONECTADOS', value: '458' },
-        { label: 'CARRITOS ACTIVOS', value: '32' },
-        { label: 'VALORACIONES (CSAT)', value: '4.85 / 5.00' },
-      ],
-      logs: buyerData ? [
-        `Hora pico tráfico: ${topHour} (${buyerData.activity_by_hour[0]?.activity_count || 0} eventos)`,
-        `Top Compras: ${buyerData.top_buyers_by_purchases[0]?.name || 'N/A'} (${buyerData.top_buyers_by_purchases[0]?.total_purchases || 0} ord.)`,
-        `Actividad total logs: ${buyerData.activity_by_hour.reduce((acc: number, curr: ActivityHour) => acc + curr.activity_count, 0)} reg.`,
-      ] : [
-        'Establishing client-side websocket links... OK',
-        'Syncing buyer order tracker... ONLINE',
-        'Telemetry feedback listener active... OK',
-      ],
-      progress: buyerData ? 100 : 95,
-    },
-    {
-      id: 'payments',
-      name: 'Payments Module',
-      code: 'PAY_MOD_03',
-      status: paymentsData ? 'ONLINE' : 'OFFLINE (FALLBACK)',
-      color: paymentsData ? 'neon' : 'safety',
-      apiEndpoint: process.env.PAYMENTS_APP_URL 
-        ? `${process.env.PAYMENTS_APP_URL.endsWith('/') ? process.env.PAYMENTS_APP_URL.slice(0, -1) : process.env.PAYMENTS_APP_URL}/api/analytics`
-        : 'https://proyecto-b-payments-buscaloya.vercel.app/api/analytics',
-      metrics: paymentsData ? [
-        { label: 'TRANSACCIONES PROCESADAS', value: `${totalTransactions}` },
-        { label: 'INGRESOS CONFIRMADOS', value: `$${totalRevenue.toLocaleString('es-AR')} ARS` },
-        { label: 'FONDOS EN ESCROW', value: `$${totalEscrow.toLocaleString('es-AR')} ARS`, warning: totalEscrow > 100000 },
-      ] : [
-        { label: 'TRANSACCIONES PROCESADAS', value: '1,429' },
-        { label: 'FONDOS EN ESCROW', value: '$840,500 ARS' },
-        { label: 'DISPUTAS ACTIVAS', value: '0', warning: false },
-      ],
-      logs: paymentsData ? [
-        `Último pago: $${paymentsData.recent_transactions[0]?.total_amount || 0} (${paymentsData.recent_transactions[0]?.status || 'N/A'})`,
-        `Transacciones fallidas: ${paymentsData.status_counts.failed || 0} operaciones`,
-        `Cuentas cerradas / completadas: ${paymentsData.status_counts.closed || 0}`,
-      ] : [
-        'Escrow verification sequence loaded... OK',
-        'Checking pending releases... SYNCED',
-        'Payments ledger integrity validation... SECURE',
-      ],
-      progress: paymentsData ? 100 : 65,
-    },
-    {
-      id: 'delivery',
-      name: 'Delivery Module',
-      code: 'DEL_MOD_04',
-      status: deliveryData ? 'ONLINE' : 'OFFLINE (FALLBACK)',
-      color: deliveryData ? 'neon' : 'safety',
-      apiEndpoint: process.env.DELIVERY_APP_URL
-        ? `${process.env.DELIVERY_APP_URL.endsWith('/') ? process.env.DELIVERY_APP_URL.slice(0, -1) : process.env.DELIVERY_APP_URL}/api/analytics`
-        : 'https://proyecto-b-delivery-buscaloya.vercel.app/api/analytics',
-      metrics: deliveryData ? [
-        { label: 'TASA DE ÉXITO', value: `${(deliveryData.success_rate.rate * 100).toFixed(1)}%` },
-        { label: 'ACTIVAS / TOTAL', value: `${deliveryData.success_rate.active} / ${deliveryData.success_rate.total}` },
-        { label: 'DISTANCIA PROM.', value: `${deliveryData.delivery_distances.average_distance} uds` },
-      ] : [
-        { label: 'DRONES EN FLOTA (ADMIN)', value: '6 UNIDADES' },
-        { label: 'MISIONES ACTIVAS (RADAR)', value: '2 VUELOS' },
-        { label: 'PROMEDIO BATERÍA', value: '87%' },
-      ],
-      logs: deliveryData ? [
-        `Envíos: ${deliveryData.success_rate.delivered} completados | ${deliveryData.success_rate.cancelled} cancelados`,
-        `Flota: ${deliveryData.courier_activity_status.ASSIGNED} volando | ${deliveryData.courier_activity_status.AVAILABLE} disponibles`,
-        `Alta demanda: ${deliveryData.high_demand_zones[0]?.buyer_address ? deliveryData.high_demand_zones[0].buyer_address.slice(0, 20) + '...' : 'NINGUNA'}`,
-      ] : [
-        'Connecting to Supabase Realtime channel... OK',
-        'Drone #3 telemetry sync lock acquired... OK',
-        'Mission status CANCELLED_SUCCESSFULLY mapped... OK',
-      ],
-      progress: deliveryData ? Math.round(deliveryData.success_rate.rate * 100) : 87,
-    },
+    formatSellerModule(sellerData),
+    formatBuyerModule(buyerData),
+    formatPaymentsModule(paymentsData),
+    formatDeliveryModule(deliveryData),
   ];
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden bg-black text-white font-mono">
-
+      
       {/* ── Background Grid: Cuadrícula Industrial ── */}
-      <div
-        className="absolute top-0 left-0 w-full h-full opacity-[0.05] pointer-events-none"
+      <div 
+        className="absolute top-0 left-0 w-full h-full opacity-[0.05] pointer-events-none" 
         suppressHydrationWarning
-        style={{
-          backgroundImage: 'linear-gradient(0deg, transparent 24%, #ffffff 25%, #ffffff 26%, transparent 27%, transparent 74%, #ffffff 75%, #ffffff 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, #ffffff 25%, #ffffff 26%, transparent 27%, transparent 74%, #ffffff 75%, #ffffff 76%, transparent 77%, transparent)',
-          backgroundSize: '40px 40px'
+        style={{ 
+          backgroundImage: 'linear-gradient(0deg, transparent 24%, #ffffff 25%, #ffffff 26%, transparent 27%, transparent 74%, #ffffff 75%, #ffffff 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, #ffffff 25%, #ffffff 26%, transparent 27%, transparent 74%, #ffffff 75%, #ffffff 76%, transparent 77%, transparent)', 
+          backgroundSize: '40px 40px' 
         }}
       />
 
       {/* ── Scanline Effect ── */}
-      <div
+      <div 
         className="absolute top-0 left-0 w-full h-[2px] bg-brand-neon/10 pointer-events-none animate-scanline z-50"
       />
 
@@ -348,30 +230,34 @@ export default async function Dashboard() {
               <span className="brutalist-tag animate-pulse-neon">CONTROL // MONITOR</span>
               <div className="w-2.5 h-2.5 bg-brand-neon animate-pulse-neon" />
             </div>
-            <Link href="/" className="border-2 border-white text-white hover:bg-white hover:text-black font-mono font-bold uppercase px-4 py-2 text-xs tracking-wider transition-colors duration-100">
-              &lt;// RETORNAR
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link href="/dashboard/inference" className="border-2 border-brand-neon text-brand-neon hover:bg-brand-neon hover:text-black font-mono font-bold uppercase px-4 py-2 text-xs tracking-wider transition-all duration-100">
+                ⚡ Cruzar Datos
+              </Link>
+              <Link href="/" className="border-2 border-white text-white hover:bg-white hover:text-black font-mono font-bold uppercase px-4 py-2 text-xs tracking-wider transition-colors duration-100">
+                &lt;// RETORNAR
+              </Link>
+            </div>
           </div>
         </div>
       </header>
 
       {/* ── Main Panel Grid ── */}
       <main className="flex-1 p-6 md:p-8 lg:p-12 relative z-10 overflow-y-auto">
-
-
+        
         {/* 4 Cuadrículas Brutalistas */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {modules.map((mod) => {
             const isNeon = mod.color === 'neon';
             const accentClass = isNeon ? 'text-brand-neon border-brand-neon' : 'text-brand-safety border-brand-safety';
             const bgHover = isNeon ? 'hover:shadow-[8px_8px_0px_rgba(0,255,0,0.15)]' : 'hover:shadow-[8px_8px_0px_rgba(255,77,0,0.15)]';
-
+            
             return (
-              <div
-                key={mod.id}
+              <div 
+                key={mod.id} 
                 className={`bg-zinc-950 border-2 border-white/10 hover:border-current transition-all duration-150 flex flex-col justify-between min-h-[360px] p-6 shadow-[6px_6px_0px_rgba(255,255,255,0.03)] ${accentClass} ${bgHover}`}
               >
-
+                
                 {/* Cabecera del Módulo */}
                 <div className="border-b border-white/10 pb-4 mb-4">
                   <div className="flex justify-between items-center mb-1">
@@ -404,8 +290,6 @@ export default async function Dashboard() {
                       </div>
                     ))}
                   </div>
-
-
                 </div>
 
                 {/* Terminal logs de simulación */}
