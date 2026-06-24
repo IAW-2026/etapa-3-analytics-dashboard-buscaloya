@@ -329,78 +329,188 @@ export default async function ModuleDetailPage({ params }: DetailPageProps) {
 
           {/* ──── BUYER DETAIL VIEW ──── */}
           {moduleId === 'buyer' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="flex flex-col gap-8">
               
-              {/* Gráfico de Barras Verticales de Usuarios Activos */}
-              <div className="lg:col-span-2 bg-zinc-950 border-2 border-white/10 p-6 flex flex-col justify-between shadow-[4px_4px_0px_rgba(255,255,255,0.02)]">
-                <div>
-                  <span className="text-[10px] text-cyan-400 font-bold tracking-widest uppercase block mb-1">
-                    {"GRÁFICO #01 // FLUJO DIARIO DE USUARIOS"}
-                  </span>
-                  <h3 className="text-lg font-sans font-bold text-white uppercase mb-6">
-                    Usuarios Activos por Día
-                  </h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Gráfico de Barras Verticales de Usuarios Activos */}
+                <div className="bg-zinc-950 border-2 border-white/10 p-6 flex flex-col justify-between shadow-[4px_4px_0px_rgba(255,255,255,0.02)]">
+                  <div>
+                    <span className="text-[10px] text-cyan-400 font-bold tracking-widest uppercase block mb-1">
+                      {"GRÁFICO #01 // FLUJO DIARIO DE USUARIOS"}
+                    </span>
+                    <h3 className="text-lg font-sans font-bold text-white uppercase mb-6">
+                      Usuarios Activos por Día
+                    </h3>
 
-                  {/* Brutalist Vertical Bar Chart */}
-                  <div className="h-64 flex items-end justify-around border-b border-l border-white/20 pb-4 pl-4 gap-4 mt-8">
-                    {activeBuyerData.active_users_per_day.map((day) => {
-                      const maxUsers = Math.max(...activeBuyerData.active_users_per_day.map(u => u.active_users), 1);
-                      const heightPercent = (day.active_users / maxUsers) * 100;
-                      return (
-                        <div key={day.date} className="flex flex-col items-center flex-1 h-full justify-end group">
-                          <div className="text-[9px] text-cyan-400 font-bold mb-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {day.active_users}
+                    {/* Brutalist Vertical Bar Chart */}
+                    <div className="h-64 flex items-end justify-around border-b border-l border-white/20 pb-4 pl-4 gap-4 mt-8">
+                      {activeBuyerData.active_users_per_day.map((day) => {
+                        const maxUsers = Math.max(...activeBuyerData.active_users_per_day.map(u => u.active_users), 1);
+                        const heightPercent = (day.active_users / maxUsers) * 100;
+                        return (
+                          <div key={day.date} className="flex flex-col items-center flex-1 h-full justify-end group">
+                            <div className="text-[9px] text-cyan-400 font-bold mb-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {day.active_users}
+                            </div>
+                            <div 
+                              style={{ height: `${heightPercent}%` }}
+                              className="bg-cyan-400 w-full border border-black hover:bg-white transition-all duration-300 relative"
+                            >
+                              <div className="absolute inset-0 bg-white/20 mix-blend-overlay"></div>
+                            </div>
+                            <span className="text-[8px] text-white/40 mt-2 font-mono whitespace-nowrap overflow-hidden text-ellipsis max-w-full">
+                              {day.date.split('-').slice(1).join('/')}
+                            </span>
                           </div>
-                          <div 
-                            style={{ height: `${heightPercent}%` }}
-                            className="bg-cyan-400 w-full border border-black hover:bg-white transition-all duration-300 relative"
-                          >
-                            <div className="absolute inset-0 bg-white/20 mix-blend-overlay"></div>
-                          </div>
-                          <span className="text-[8px] text-white/40 mt-2 font-mono whitespace-nowrap overflow-hidden text-ellipsis max-w-full">
-                            {day.date.split('-').slice(1).join('/')}
-                          </span>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="border-t border-white/10 pt-4 mt-6 text-[8px] text-white/30 font-mono">
+                    MÉTRICA EN TIEMPO REAL / BUYER TELEMETRY
                   </div>
                 </div>
-                <div className="border-t border-white/10 pt-4 mt-6 text-[8px] text-white/30 font-mono">
-                  MÉTRICA EN TIEMPO REAL / BUYER TELEMETRY
+
+                {/* Gráfico de Barras Verticales de Nuevos Usuarios */}
+                <div className="bg-zinc-950 border-2 border-white/10 p-6 flex flex-col justify-between shadow-[4px_4px_0px_rgba(255,255,255,0.02)]">
+                  <div>
+                    <span className="text-[10px] text-cyan-400 font-bold tracking-widest uppercase block mb-1">
+                      {"GRÁFICO #02 // ADQUISICIÓN DIARIA"}
+                    </span>
+                    <h3 className="text-lg font-sans font-bold text-white uppercase mb-6">
+                      Nuevos Usuarios por Día
+                    </h3>
+
+                    {/* Brutalist Vertical Bar Chart */}
+                    <div className="h-64 flex items-end justify-around border-b border-l border-white/20 pb-4 pl-4 gap-4 mt-8">
+                      {activeBuyerData.new_users_per_day.map((day) => {
+                        const maxNew = Math.max(...activeBuyerData.new_users_per_day.map(u => u.new_users), 1);
+                        const heightPercent = (day.new_users / maxNew) * 100;
+                        return (
+                          <div key={day.date} className="flex flex-col items-center flex-1 h-full justify-end group">
+                            <div className="text-[9px] text-cyan-400 font-bold mb-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {day.new_users}
+                            </div>
+                            <div 
+                              style={{ height: `${heightPercent}%` }}
+                              className="bg-cyan-400/70 w-full border border-cyan-400 hover:bg-cyan-400 transition-all duration-300 relative"
+                            >
+                              <div className="absolute inset-0 bg-white/10 mix-blend-overlay"></div>
+                            </div>
+                            <span className="text-[8px] text-white/40 mt-2 font-mono whitespace-nowrap overflow-hidden text-ellipsis max-w-full">
+                              {day.date.split('-').slice(1).join('/')}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="border-t border-white/10 pt-4 mt-6 text-[8px] text-white/30 font-mono">
+                    MÉTRICA DE ADQUISICIÓN / BUYER TELEMETRY
+                  </div>
                 </div>
               </div>
 
-              {/* Tráfico por Hora & Clientes VIP */}
-              <div className="bg-zinc-950 border-2 border-white/10 p-6 flex flex-col justify-between shadow-[4px_4px_0px_rgba(255,255,255,0.02)]">
-                <div>
-                  <span className="text-[10px] text-cyan-400 font-bold tracking-widest uppercase block mb-1">
-                    {"AUDITORÍA #02 // COMPRADORES VIP"}
-                  </span>
-                  <h3 className="text-lg font-sans font-bold text-white uppercase mb-6">
-                    Clientes Destacados (Gasto)
-                  </h3>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Actividad por Hora */}
+                <div className="bg-zinc-950 border-2 border-white/10 p-6 flex flex-col justify-between shadow-[4px_4px_0px_rgba(255,255,255,0.02)]">
+                  <div>
+                    <span className="text-[10px] text-cyan-400 font-bold tracking-widest uppercase block mb-1">
+                      {"GRÁFICO #03 // TRÁFICO HORARIO"}
+                    </span>
+                    <h3 className="text-lg font-sans font-bold text-white uppercase mb-6">
+                      Actividad por Hora
+                    </h3>
 
-                  <div className="flex flex-col gap-4">
-                    {activeBuyerData.top_buyers_by_amount.map((buyer, idx) => (
-                      <div key={idx} className="border border-white/10 p-3 bg-black/40 flex flex-col">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-xs font-bold text-white">{buyer.name}</span>
-                          <span className="text-xs font-bold text-cyan-400">${buyer.total_spent.toLocaleString('es-AR')}</span>
-                        </div>
-                        <span className="text-[9px] text-white/40">{buyer.email}</span>
-                        <div className="flex justify-between text-[8px] text-white/30 font-mono border-t border-white/5 pt-1.5 mt-2">
-                          <span>COMPRAS: {buyer.total_purchases}</span>
-                          <span>STATUS: VIP</span>
-                        </div>
-                      </div>
-                    ))}
+                    <div className="flex flex-col gap-4">
+                      {activeBuyerData.activity_by_hour.map((activity, idx) => {
+                        const maxActivity = Math.max(...activeBuyerData.activity_by_hour.map(a => a.activity_count), 1);
+                        const widthPercent = (activity.activity_count / maxActivity) * 100;
+                        return (
+                          <div key={idx} className="flex flex-col gap-1">
+                            <div className="flex justify-between text-[10px] font-mono">
+                              <span className="text-white/80">{String(activity.hour).padStart(2, '0')}:00 HRS</span>
+                              <span className="text-cyan-400 font-bold">{activity.activity_count} ACT</span>
+                            </div>
+                            <div className="w-full bg-zinc-900 border border-white/10 h-3 p-[1px]">
+                              <div 
+                                style={{ width: `${widthPercent}%` }}
+                                className="bg-cyan-400 h-full opacity-80"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="border-t border-white/10 pt-4 mt-6 text-[8px] text-white/30 font-mono">
+                    PATRÓN DE USO / BUYER DATABASE
                   </div>
                 </div>
-                <div className="border-t border-white/10 pt-4 mt-6 text-[8px] text-white/30 font-mono">
-                  ACTIVOS TOTALES: BUYER DATABASE
-                </div>
-              </div>
 
+                {/* Clientes VIP (Gasto) */}
+                <div className="bg-zinc-950 border-2 border-white/10 p-6 flex flex-col justify-between shadow-[4px_4px_0px_rgba(255,255,255,0.02)]">
+                  <div>
+                    <span className="text-[10px] text-cyan-400 font-bold tracking-widest uppercase block mb-1">
+                      {"AUDITORÍA #04 // TOP POR GASTO"}
+                    </span>
+                    <h3 className="text-lg font-sans font-bold text-white uppercase mb-6">
+                      Clientes Destacados
+                    </h3>
+
+                    <div className="flex flex-col gap-4">
+                      {activeBuyerData.top_buyers_by_amount.map((buyer, idx) => (
+                        <div key={idx} className="border border-white/10 p-3 bg-black/40 flex flex-col">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-xs font-bold text-white">{buyer.name}</span>
+                            <span className="text-xs font-bold text-cyan-400">${buyer.total_spent.toLocaleString('es-AR')}</span>
+                          </div>
+                          <span className="text-[9px] text-white/40">{buyer.email}</span>
+                          <div className="flex justify-between text-[8px] text-white/30 font-mono border-t border-white/5 pt-1.5 mt-2">
+                            <span>COMPRAS: {buyer.total_purchases}</span>
+                            <span>STATUS: VIP</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="border-t border-white/10 pt-4 mt-6 text-[8px] text-white/30 font-mono">
+                    ACTIVOS TOTALES: BUYER DATABASE
+                  </div>
+                </div>
+
+                {/* Clientes VIP (Compras) */}
+                <div className="bg-zinc-950 border-2 border-white/10 p-6 flex flex-col justify-between shadow-[4px_4px_0px_rgba(255,255,255,0.02)]">
+                  <div>
+                    <span className="text-[10px] text-cyan-400 font-bold tracking-widest uppercase block mb-1">
+                      {"AUDITORÍA #05 // TOP POR COMPRAS"}
+                    </span>
+                    <h3 className="text-lg font-sans font-bold text-white uppercase mb-6">
+                      Compradores Frecuentes
+                    </h3>
+
+                    <div className="flex flex-col gap-4">
+                      {activeBuyerData.top_buyers_by_purchases.map((buyer, idx) => (
+                        <div key={idx} className="border border-white/10 p-3 bg-black/40 flex flex-col">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-xs font-bold text-white">{buyer.name}</span>
+                            <span className="text-xs font-bold text-cyan-400">{buyer.total_purchases} ÓRDENES</span>
+                          </div>
+                          <span className="text-[9px] text-white/40">{buyer.email}</span>
+                          <div className="flex justify-between text-[8px] text-white/30 font-mono border-t border-white/5 pt-1.5 mt-2">
+                            <span>GASTO: ${buyer.total_spent.toLocaleString('es-AR')}</span>
+                            <span>STATUS: RECURRENTE</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="border-t border-white/10 pt-4 mt-6 text-[8px] text-white/30 font-mono">
+                    MÉTRICA DE FRECUENCIA: BUYER DATABASE
+                  </div>
+                </div>
+
+              </div>
             </div>
           )}
 
