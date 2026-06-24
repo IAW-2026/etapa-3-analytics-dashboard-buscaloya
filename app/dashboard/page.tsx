@@ -81,7 +81,7 @@ async function getBuyerAnalytics(): Promise<BuyerAnalyticsData | null> {
   const url = `${cleanBase}/api/analytics`;
   const token = process.env.BUYER_SERVICE_SECRET;
   try {
-    const res = await fetch(url, { 
+    const res = await fetch(url, {
       cache: 'no-store',
       headers: {
         'Authorization': `Bearer ${token || ''}`
@@ -100,10 +100,10 @@ async function getBuyerAnalytics(): Promise<BuyerAnalyticsData | null> {
 async function getSellerAnalytics(): Promise<SellerAnalyticsData | null> {
   const baseUrl = process.env.SELLER_APP_URL || 'https://proyecto-b-seller-buscaloya.vercel.app';
   const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-  const url = `${cleanBase}/api/seller/analitycs`;
-  const token = process.env.SELLER_SERVICE_SECRET;
+  const url = `${cleanBase}/api/seller/analytics`;
+  const token = process.env.SELLER_API_KEY || process.env.SELLER_SERVICE_SECRET;
   try {
-    const res = await fetch(url, { 
+    const res = await fetch(url, {
       cache: 'no-store',
       headers: {
         'Authorization': `Bearer ${token || ''}`
@@ -126,7 +126,7 @@ export default async function Dashboard() {
 
   // Cálculos del módulo Buyer (Comprador)
   const lastActiveCount = (buyerData?.active_users_per_day && buyerData.active_users_per_day.length > 0)
-    ? buyerData.active_users_per_day[buyerData.active_users_per_day.length - 1].active_users 
+    ? buyerData.active_users_per_day[buyerData.active_users_per_day.length - 1].active_users
     : 0;
   const buyerNew30d = buyerData?.new_users_per_day
     ? buyerData.new_users_per_day.reduce((acc: number, curr: NewUsersDay) => acc + curr.new_users, 0)
@@ -156,8 +156,8 @@ export default async function Dashboard() {
       status: sellerData ? 'ONLINE' : 'OFFLINE (FALLBACK)',
       color: sellerData ? 'neon' : 'safety',
       apiEndpoint: process.env.SELLER_APP_URL 
-        ? `${process.env.SELLER_APP_URL.endsWith('/') ? process.env.SELLER_APP_URL.slice(0, -1) : process.env.SELLER_APP_URL}/api/seller/analitycs`
-        : 'https://proyecto-b-seller-buscaloya.vercel.app/api/seller/analitycs',
+        ? `${process.env.SELLER_APP_URL.endsWith('/') ? process.env.SELLER_APP_URL.slice(0, -1) : process.env.SELLER_APP_URL}/api/seller/analytics`
+        : 'https://proyecto-b-seller-buscaloya.vercel.app/api/seller/analytics',
       metrics: sellerData ? [
         { label: 'TIENDAS CON VENTAS', value: `${totalStores}` },
         { label: 'PAQUETES VENDIDOS', value: `${totalSellerOrders}` },
@@ -184,7 +184,7 @@ export default async function Dashboard() {
       code: 'BUY_MOD_02',
       status: buyerData ? 'ONLINE' : 'OFFLINE (FALLBACK)',
       color: buyerData ? 'neon' : 'safety',
-      apiEndpoint: process.env.BUYER_APP_URL 
+      apiEndpoint: process.env.BUYER_APP_URL
         ? `${process.env.BUYER_APP_URL.endsWith('/') ? process.env.BUYER_APP_URL.slice(0, -1) : process.env.BUYER_APP_URL}/api/analytics`
         : 'https://proyecto-b-buyer-buscaloya.vercel.app/api/analytics',
       metrics: buyerData ? [
@@ -232,8 +232,8 @@ export default async function Dashboard() {
       code: 'DEL_MOD_04',
       status: deliveryData ? 'ONLINE' : 'OFFLINE (FALLBACK)',
       color: deliveryData ? 'neon' : 'safety',
-      apiEndpoint: process.env.DELIVERY_APP_URL 
-        ? `${process.env.DELIVERY_APP_URL.endsWith('/') ? process.env.DELIVERY_APP_URL.slice(0, -1) : process.env.DELIVERY_APP_URL}/api/analytics` 
+      apiEndpoint: process.env.DELIVERY_APP_URL
+        ? `${process.env.DELIVERY_APP_URL.endsWith('/') ? process.env.DELIVERY_APP_URL.slice(0, -1) : process.env.DELIVERY_APP_URL}/api/analytics`
         : 'https://proyecto-b-delivery-buscaloya.vercel.app/api/analytics',
       metrics: deliveryData ? [
         { label: 'TASA DE ÉXITO', value: `${(deliveryData.success_rate.rate * 100).toFixed(1)}%` },
@@ -259,19 +259,19 @@ export default async function Dashboard() {
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden bg-black text-white font-mono">
-      
+
       {/* ── Background Grid: Cuadrícula Industrial ── */}
-      <div 
-        className="absolute top-0 left-0 w-full h-full opacity-[0.05] pointer-events-none" 
+      <div
+        className="absolute top-0 left-0 w-full h-full opacity-[0.05] pointer-events-none"
         suppressHydrationWarning
-        style={{ 
-          backgroundImage: 'linear-gradient(0deg, transparent 24%, #ffffff 25%, #ffffff 26%, transparent 27%, transparent 74%, #ffffff 75%, #ffffff 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, #ffffff 25%, #ffffff 26%, transparent 27%, transparent 74%, #ffffff 75%, #ffffff 76%, transparent 77%, transparent)', 
-          backgroundSize: '40px 40px' 
+        style={{
+          backgroundImage: 'linear-gradient(0deg, transparent 24%, #ffffff 25%, #ffffff 26%, transparent 27%, transparent 74%, #ffffff 75%, #ffffff 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, #ffffff 25%, #ffffff 26%, transparent 27%, transparent 74%, #ffffff 75%, #ffffff 76%, transparent 77%, transparent)',
+          backgroundSize: '40px 40px'
         }}
       />
 
       {/* ── Scanline Effect ── */}
-      <div 
+      <div
         className="absolute top-0 left-0 w-full h-[2px] bg-brand-neon/10 pointer-events-none animate-scanline z-50"
       />
 
@@ -302,7 +302,7 @@ export default async function Dashboard() {
 
       {/* ── Main Panel Grid ── */}
       <main className="flex-1 p-6 md:p-8 lg:p-12 relative z-10 overflow-y-auto">
-        
+
 
         {/* 4 Cuadrículas Brutalistas */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -310,13 +310,13 @@ export default async function Dashboard() {
             const isNeon = mod.color === 'neon';
             const accentClass = isNeon ? 'text-brand-neon border-brand-neon' : 'text-brand-safety border-brand-safety';
             const bgHover = isNeon ? 'hover:shadow-[8px_8px_0px_rgba(0,255,0,0.15)]' : 'hover:shadow-[8px_8px_0px_rgba(255,77,0,0.15)]';
-            
+
             return (
-              <div 
-                key={mod.id} 
+              <div
+                key={mod.id}
                 className={`bg-zinc-950 border-2 border-white/10 hover:border-current transition-all duration-150 flex flex-col justify-between min-h-[360px] p-6 shadow-[6px_6px_0px_rgba(255,255,255,0.03)] ${accentClass} ${bgHover}`}
               >
-                
+
                 {/* Cabecera del Módulo */}
                 <div className="border-b border-white/10 pb-4 mb-4">
                   <div className="flex justify-between items-center mb-1">
