@@ -61,6 +61,7 @@ export interface PaymentsAnalyticsData {
   module: string;
   total_revenue: number;
   total_escrow: number;
+  total_delivery_cost?: number;
   total_transactions: number;
   status_counts: Record<string, number>;
   status_amounts: Record<string, number>;

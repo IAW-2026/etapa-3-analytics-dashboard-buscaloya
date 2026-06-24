@@ -14,7 +14,31 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-export default async function InferencePage() {
+interface InferenceCard {
+  id: number;
+  correlationCode: string;
+  title: string;
+  indicators: {
+    label: string;
+    value: string;
+  }[];
+  inferenceTitle: string;
+  inferenceText: string;
+  textColorClass: string;
+  dataSource: string;
+  status: string;
+}
+
+export default async function InferencePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  // Resolver searchParams
+  const resolvedParams = await searchParams;
+  const pageParam = resolvedParams?.page;
+  const currentPage = Math.max(1, Number(pageParam) || 1);
+
   // Carga paralela de todas las APIs
   const [deliveryData, buyerData, sellerData, paymentsData] = await Promise.all([
     getDeliveryAnalytics(),
@@ -23,15 +47,17 @@ export default async function InferencePage() {
     getPaymentsAnalytics(),
   ]);
 
-  // 1. Cálculos de Inferencia 1: Logística vs Finanzas (Delivery + Payments)
   const isDeliveryOnline = !!deliveryData;
+  const isBuyerOnline = !!buyerData;
+  const isSellerOnline = !!sellerData;
   const isPaymentsOnline = !!paymentsData;
-  
+
+  // ──── CÁLCULO DE INFERENCIAS ────
+
+  // Inferencia 1: Logística vs Finanzas (Delivery + Payments)
   const deliverySuccessRate = deliveryData?.success_rate?.rate || 0;
   const averageDistance = deliveryData?.delivery_distances?.average_distance || 0;
   const totalRevenue = paymentsData?.total_revenue || 0;
-
-  // Rendimiento de facturación por unidad de distancia recorrida
   const revenuePerDistanceUnit = (isPaymentsOnline && isDeliveryOnline && averageDistance > 0)
     ? totalRevenue / averageDistance
     : 0;
@@ -50,16 +76,11 @@ export default async function InferencePage() {
     logisticsFinanceColor = 'text-brand-safety';
   }
 
-  // 2. Cálculos de Inferencia 2: Concentración de Clientes VIP vs Tiendas (Buyer + Seller)
-  const isBuyerOnline = !!buyerData;
-  const isSellerOnline = !!sellerData;
-
+  // Inferencia 2: Concentración de Clientes VIP vs Tiendas (Buyer + Seller)
   const topSpenderName = buyerData?.top_buyers_by_amount?.[0]?.name || 'N/A';
   const topSpenderSpent = buyerData?.top_buyers_by_amount?.[0]?.total_spent || 0;
   const leaderStoreName = sellerData?.top_selling_stores?.[0]?.store_name || 'N/A';
   const leaderStoreRevenue = sellerData?.top_selling_stores?.[0]?.total_revenue || 0;
-
-  // Participación estimada del cliente estrella sobre la tienda líder
   const vipShareOfLeaderStore = (leaderStoreRevenue > 0 && topSpenderSpent > 0)
     ? (topSpenderSpent / leaderStoreRevenue) * 100
     : 0;
@@ -78,16 +99,13 @@ export default async function InferencePage() {
     buyerSellerColor = 'text-brand-neon';
   }
 
-  // 3. Cálculos de Inferencia 3: Tráfico y Saturación de Flota (Buyer + Delivery)
+  // Inferencia 3: Tráfico y Saturación de Flota (Buyer + Delivery)
   const activeUsersLastDay = (buyerData?.active_users_per_day && buyerData.active_users_per_day.length > 0)
     ? buyerData.active_users_per_day[buyerData.active_users_per_day.length - 1].active_users
     : 0;
-  
   const dronesAssigned = deliveryData?.courier_activity_status?.ASSIGNED || 0;
   const dronesAvailable = deliveryData?.courier_activity_status?.AVAILABLE || 0;
   const totalDrones = dronesAssigned + dronesAvailable;
-
-  // Ratio de usuarios activos por dron operativo
   const usersPerDroneRatio = (totalDrones > 0) ? activeUsersLastDay / totalDrones : 0;
 
   let saturationInference = '';
@@ -104,13 +122,11 @@ export default async function InferencePage() {
     saturationColor = 'text-brand-neon';
   }
 
-  // 4. Cálculos de Inferencia 4: Garantías en Escrow vs Volumen de Órdenes (Payments + Seller)
+  // Inferencia 4: Garantías en Escrow vs Volumen de Órdenes (Payments + Seller)
   const totalEscrow = paymentsData?.total_escrow || 0;
   const totalSellerOrders = sellerData?.top_selling_stores
     ? sellerData.top_selling_stores.reduce((acc: number, curr: TopSellingStore) => acc + curr.total_orders, 0)
     : 0;
-
-  // Promedio de fondos retenidos en escrow por orden registrada
   const escrowPerOrderRatio = (totalSellerOrders > 0) ? totalEscrow / totalSellerOrders : 0;
 
   let escrowInference = '';
@@ -126,6 +142,208 @@ export default async function InferencePage() {
     escrowInference = `FLUJO LOGÍSTICO RÁPIDO: Promedio de $${escrowPerOrderRatio.toFixed(2)} ARS por orden comercial en escrow. La liberación de pagos por entrega finalizada está funcionando eficientemente, reduciendo el capital de trabajo inmovilizado en la plataforma.`;
     escrowColor = 'text-brand-neon';
   }
+
+  // Inferencia 5: Crecimiento de Ecosistema y Adopción (Payments + Buyer)
+  const totalTransactions = paymentsData?.total_transactions || 0;
+  const newUsersCount = buyerData?.new_users_per_day?.reduce((acc, curr) => acc + curr.new_users, 0) || 0;
+  const txPerNewUserRatio = newUsersCount > 0 ? totalTransactions / newUsersCount : 0;
+
+  let ecosystemInference = '';
+  let ecosystemColor = 'text-white';
+
+  if (!isPaymentsOnline || !isBuyerOnline) {
+    ecosystemInference = 'DATOS INSUFICIENTES: Módulo de Payments o Buyer fuera de línea. No se puede calcular el ratio de adopción transaccional de nuevos usuarios.';
+    ecosystemColor = 'text-brand-safety';
+  } else if (txPerNewUserRatio > 1.5) {
+    ecosystemInference = `ALTA CONVERSIÓN DE USUARIOS: Se registran ${txPerNewUserRatio.toFixed(2)} transacciones por cada nuevo usuario registrado en el último periodo. Indica un fuerte engagement inicial y un proceso de onboarding financiero exitoso en la pasarela.`;
+    ecosystemColor = 'text-brand-neon';
+  } else {
+    ecosystemInference = `ONBOARDING LENTO / INACTIVO: Con solo ${txPerNewUserRatio.toFixed(2)} transacciones por nuevo usuario, el volumen de registros no está convirtiendo en actividad económica. Se recomienda lanzar campañas de activación de billetera digital.`;
+    ecosystemColor = 'text-brand-safety';
+  }
+
+  // Inferencia 6: Costo de Envío Relativo (Payments + Delivery)
+  // Intentar obtener total_delivery_cost de Payments o estimarlo basándose en entregas
+  const totalDeliveryCost = paymentsData?.total_delivery_cost ??
+    ((deliveryData?.success_rate?.delivered || 0) * (deliveryData?.delivery_distances?.average_distance || 0) * 150);
+  
+  const deliveryCostRatio = totalRevenue > 0 ? (totalDeliveryCost / totalRevenue) * 100 : 0;
+
+  let deliveryCostInference = '';
+  let deliveryCostColor = 'text-white';
+
+  if (!isPaymentsOnline || !isDeliveryOnline) {
+    deliveryCostInference = 'DATOS INSUFICIENTES: No es posible vincular los costos logísticos agregados con los ingresos brutos debido a fallas de conexión telemétrica.';
+    deliveryCostColor = 'text-brand-safety';
+  } else if (deliveryCostRatio > 25) {
+    deliveryCostInference = `ALERTA DE MARGEN LOGÍSTICO: Los costos estimados de entrega representan el ${deliveryCostRatio.toFixed(1)}% de la facturación global de la plataforma ($${totalDeliveryCost.toLocaleString('es-AR')} ARS). Los costos logísticos están presionando los márgenes netos. Considere tarifas dinámicas.`;
+    deliveryCostColor = 'text-brand-safety';
+  } else {
+    deliveryCostInference = `LOGÍSTICA RENTABLE: El costo de entrega representa el ${deliveryCostRatio.toFixed(1)}% de la facturación bruta total de la plataforma. La relación costo-ingreso de la flota de drones se mantiene en niveles saludables e ideales para escalabilidad.`;
+    deliveryCostColor = 'text-brand-neon';
+  }
+
+  // Inferencia 7: Índice CSAT Proyectado (Delivery + Buyer)
+  // CSAT estimado combinando tasa de éxito de entregas y saturación
+  const projectedCsat = Math.min(100, Math.max(0, (deliverySuccessRate * 80) + (100 - (deliverySuccessRate * 100 < 80 ? 20 : 0))));
+
+  let csatInference = '';
+  let csatColor = 'text-white';
+
+  if (!isDeliveryOnline || !isBuyerOnline) {
+    csatInference = 'DATOS INSUFICIENTES: Imposible proyectar satisfacción al cliente (CSAT) sin telemetría de envío o actividad de usuarios.';
+    csatColor = 'text-brand-safety';
+  } else if (projectedCsat >= 85) {
+    csatInference = `RETENCIÓN SALUDABLE: CSAT Proyectado en un ${projectedCsat.toFixed(1)}%. La alta efectividad en entregas directas está consolidando la lealtad del usuario activo en las zonas de mayor demanda.`;
+    csatColor = 'text-brand-neon';
+  } else {
+    csatInference = `RIESGO DE DEGRADACIÓN CSAT: CSAT estimado en un ${projectedCsat.toFixed(1)}% debido a demoras de logística o cancelaciones recurrentes de la flota. Se recomienda auditar los tiempos de despacho inmediatamente.`;
+    csatColor = 'text-brand-safety';
+  }
+
+  // Inferencia 8: Monopolio de Tienda Líder (Seller + Payments)
+  const storeConcentration = totalRevenue > 0 ? (leaderStoreRevenue / totalRevenue) * 100 : 0;
+
+  let concentrationInference = '';
+  let concentrationColor = 'text-white';
+
+  if (!isSellerOnline || !isPaymentsOnline) {
+    concentrationInference = 'DATOS INSUFICIENTES: Fallas de red en Seller o Payments impiden calcular el índice de concentración de mercado por merchant.';
+    concentrationColor = 'text-brand-safety';
+  } else if (storeConcentration > 40) {
+    concentrationInference = `ALTA CONCENTRACIÓN DE MERCADO: La tienda "${leaderStoreName}" acapara el ${storeConcentration.toFixed(1)}% de la facturación global registrada en pasarela. Existe una dependencia crítica del ecosistema sobre este único vendedor principal.`;
+    concentrationColor = 'text-brand-safety';
+  } else {
+    concentrationInference = `DISTRIBUCIÓN EQUITATIVA: La tienda líder representa un ${storeConcentration.toFixed(1)}% de los ingresos de pagos comerciales. Diversidad de catálogo saludable con múltiples tiendas compitiendo en igualdad de condiciones.`;
+    concentrationColor = 'text-brand-neon';
+  }
+
+  // ──── DEFINICIÓN Y SEGMENTACIÓN DE MÓDULOS (INFERENCIAS) ────
+
+  const allInferences: InferenceCard[] = [
+    {
+      id: 1,
+      correlationCode: 'CORRELACIÓN #01 // LOGÍSTICA & RETORNO FINANCIERO',
+      title: 'Eficiencia y Costo por Distancia',
+      indicators: [
+        { label: 'Éxito Delivery', value: isDeliveryOnline ? `${(deliverySuccessRate * 100).toFixed(1)}%` : 'OFFLINE' },
+        { label: 'Ingresos / Dist. Unit.', value: `$${revenuePerDistanceUnit.toFixed(2)} ARS` }
+      ],
+      inferenceTitle: 'INFERENCE_OUTPUT //',
+      inferenceText: logisticsFinanceInference,
+      textColorClass: logisticsFinanceColor,
+      dataSource: 'DELIVERY API + PAYMENTS API',
+      status: isDeliveryOnline && isPaymentsOnline ? 'OK' : 'DEGRADED'
+    },
+    {
+      id: 2,
+      correlationCode: 'CORRELACIÓN #02 // CONCENTRACIÓN DE CLIENTES',
+      title: 'Distribución Comprador VIP vs Tiendas',
+      indicators: [
+        { label: 'Gasto Cliente VIP', value: `$${topSpenderSpent.toLocaleString('es-AR')} ARS` },
+        { label: 'Participación s/Líder', value: `${vipShareOfLeaderStore.toFixed(1)}%` }
+      ],
+      inferenceTitle: 'INFERENCE_OUTPUT //',
+      inferenceText: buyerSellerInference,
+      textColorClass: buyerSellerColor,
+      dataSource: 'BUYER API + SELLER API',
+      status: isBuyerOnline && isSellerOnline ? 'OK' : 'DEGRADED'
+    },
+    {
+      id: 3,
+      correlationCode: 'CORRELACIÓN #03 // SATURACIÓN LOGÍSTICA',
+      title: 'Capacidad de Flota vs Tráfico',
+      indicators: [
+        { label: 'Usuarios Activos (Últ. Día)', value: `${activeUsersLastDay} usuarios` },
+        { label: 'Ratio Demanda/Dron', value: `${usersPerDroneRatio.toFixed(1)} u/dron` }
+      ],
+      inferenceTitle: 'INFERENCE_OUTPUT //',
+      inferenceText: saturationInference,
+      textColorClass: saturationColor,
+      dataSource: 'BUYER API + DELIVERY API',
+      status: isBuyerOnline && isDeliveryOnline ? 'OK' : 'DEGRADED'
+    },
+    {
+      id: 4,
+      correlationCode: 'CORRELACIÓN #04 // GARANTÍAS COMERCIALES',
+      title: 'Liquidez en Escrow vs Ventas',
+      indicators: [
+        { label: 'Fondos Escrow', value: `$${totalEscrow.toLocaleString('es-AR')} ARS` },
+        { label: 'Fondos / Orden', value: `$${escrowPerOrderRatio.toFixed(2)} ARS` }
+      ],
+      inferenceTitle: 'INFERENCE_OUTPUT //',
+      inferenceText: escrowInference,
+      textColorClass: escrowColor,
+      dataSource: 'PAYMENTS API + SELLER API',
+      status: isPaymentsOnline && isSellerOnline ? 'OK' : 'DEGRADED'
+    },
+    {
+      id: 5,
+      correlationCode: 'CORRELACIÓN #05 // CRECIMIENTO & ADOPCIÓN',
+      title: 'Conversión de Nuevos Usuarios',
+      indicators: [
+        { label: 'Transacciones Totales', value: `${totalTransactions}` },
+        { label: 'Transac. / Reg. Nuevo', value: `${txPerNewUserRatio.toFixed(2)} tx/u` }
+      ],
+      inferenceTitle: 'INFERENCE_OUTPUT //',
+      inferenceText: ecosystemInference,
+      textColorClass: ecosystemColor,
+      dataSource: 'PAYMENTS API + BUYER API',
+      status: isPaymentsOnline && isBuyerOnline ? 'OK' : 'DEGRADED'
+    },
+    {
+      id: 6,
+      correlationCode: 'CORRELACIÓN #06 // ANÁLISIS DE COSTO RELATIVO',
+      title: 'Costo Logístico sobre Facturación',
+      indicators: [
+        { label: 'Costo Envío Estimado', value: `$${totalDeliveryCost.toLocaleString('es-AR')} ARS` },
+        { label: 'Impacto s/Ingresos', value: `${deliveryCostRatio.toFixed(1)}%` }
+      ],
+      inferenceTitle: 'INFERENCE_OUTPUT //',
+      inferenceText: deliveryCostInference,
+      textColorClass: deliveryCostColor,
+      dataSource: 'PAYMENTS API + DELIVERY API',
+      status: isPaymentsOnline && isDeliveryOnline ? 'OK' : 'DEGRADED'
+    },
+    {
+      id: 7,
+      correlationCode: 'CORRELACIÓN #07 // TELEMETRÍA Y SATISFACCIÓN',
+      title: 'CSAT Telemétrico Proyectado',
+      indicators: [
+        { label: 'Éxito Logístico', value: isDeliveryOnline ? `${(deliverySuccessRate * 100).toFixed(1)}%` : 'OFFLINE' },
+        { label: 'Satisfacción Proyectada', value: `${projectedCsat.toFixed(1)}%` }
+      ],
+      inferenceTitle: 'INFERENCE_OUTPUT //',
+      inferenceText: csatInference,
+      textColorClass: csatColor,
+      dataSource: 'DELIVERY API + BUYER API',
+      status: isDeliveryOnline && isBuyerOnline ? 'OK' : 'DEGRADED'
+    },
+    {
+      id: 8,
+      correlationCode: 'CORRELACIÓN #08 // DISTRIBUCIÓN DE MERCADO',
+      title: 'Monopolio vs Diversidad Comercial',
+      indicators: [
+        { label: 'Ventas Tienda Líder', value: `$${leaderStoreRevenue.toLocaleString('es-AR')} ARS` },
+        { label: 'Concentración Bruta', value: `${storeConcentration.toFixed(1)}%` }
+      ],
+      inferenceTitle: 'INFERENCE_OUTPUT //',
+      inferenceText: concentrationInference,
+      textColorClass: concentrationColor,
+      dataSource: 'SELLER API + PAYMENTS API',
+      status: isSellerOnline && isPaymentsOnline ? 'OK' : 'DEGRADED'
+    }
+  ];
+
+  // Paginación
+  const cardsPerPage = 4;
+  const totalCards = allInferences.length;
+  const totalPages = Math.ceil(totalCards / cardsPerPage);
+  
+  // Limitar página entre 1 y totalPages
+  const activePage = Math.min(totalPages, Math.max(1, currentPage));
+  const startIndex = (activePage - 1) * cardsPerPage;
+  const paginatedInferences = allInferences.slice(startIndex, startIndex + cardsPerPage);
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden bg-black text-white font-mono">
@@ -186,133 +404,77 @@ export default async function InferencePage() {
 
           {/* Grilla de Inferencias */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-
-            {/* Inferencia 1 */}
-            <div className="bg-zinc-950 border-2 border-white/10 p-6 flex flex-col justify-between shadow-[4px_4px_0px_rgba(255,255,255,0.02)]">
-              <div>
-                <span className="text-[10px] text-brand-neon font-bold tracking-widest uppercase block mb-1">
-                  CORRELACIÓN #01 // LOGÍSTICA & RETORNO FINANCIERO
-                </span>
-                <h3 className="text-lg font-sans font-bold text-white uppercase mb-4">
-                  Eficiencia y Costo por Distancia
-                </h3>
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  <div className="border border-white/5 bg-black/40 p-2 flex flex-col">
-                    <span className="text-[8px] text-white/30 uppercase">Éxito Delivery</span>
-                    <span className="text-sm font-bold">{isDeliveryOnline ? `${(deliverySuccessRate * 100).toFixed(1)}%` : 'OFFLINE'}</span>
+            {paginatedInferences.map((card) => (
+              <div 
+                key={card.id}
+                className="bg-zinc-950 border-2 border-white/10 p-6 flex flex-col justify-between shadow-[4px_4px_0px_rgba(255,255,255,0.02)]"
+              >
+                <div>
+                  <span className="text-[10px] text-brand-neon font-bold tracking-widest uppercase block mb-1">
+                    {card.correlationCode}
+                  </span>
+                  <h3 className="text-lg font-sans font-bold text-white uppercase mb-4">
+                    {card.title}
+                  </h3>
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    {card.indicators.map((ind, i) => (
+                      <div key={i} className="border border-white/5 bg-black/40 p-2 flex flex-col">
+                        <span className="text-[8px] text-white/30 uppercase">{ind.label}</span>
+                        <span className="text-sm font-bold">{ind.value}</span>
+                      </div>
+                    ))}
                   </div>
-                  <div className="border border-white/5 bg-black/40 p-2 flex flex-col">
-                    <span className="text-[8px] text-white/30 uppercase">Ingresos / Dist. Unit.</span>
-                    <span className="text-sm font-bold">${revenuePerDistanceUnit.toFixed(2)} ARS</span>
-                  </div>
-                </div>
-                <div className="bg-black/60 border border-white/5 p-4 font-mono text-[10px] leading-relaxed">
-                  <span className="text-white/30 font-bold block mb-1">INFERENCE_OUTPUT //</span>
-                  <p className={logisticsFinanceColor}>{logisticsFinanceInference}</p>
-                </div>
-              </div>
-              <div className="border-t border-white/10 pt-4 mt-6 text-[8px] text-white/30 flex justify-between font-mono">
-                <span>DATOS: DELIVERY API + PAYMENTS API</span>
-                <span>STATUS: OK</span>
-              </div>
-            </div>
-
-            {/* Inferencia 2 */}
-            <div className="bg-zinc-950 border-2 border-white/10 p-6 flex flex-col justify-between shadow-[4px_4px_0px_rgba(255,255,255,0.02)]">
-              <div>
-                <span className="text-[10px] text-brand-neon font-bold tracking-widest uppercase block mb-1">
-                  CORRELACIÓN #02 // CONCENTRACIÓN DE CLIENTES
-                </span>
-                <h3 className="text-lg font-sans font-bold text-white uppercase mb-4">
-                  Distribución Comprador VIP vs Tiendas
-                </h3>
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  <div className="border border-white/5 bg-black/40 p-2 flex flex-col">
-                    <span className="text-[8px] text-white/30 uppercase">Gasto Cliente VIP</span>
-                    <span className="text-sm font-bold">${topSpenderSpent.toLocaleString('es-AR')} ARS</span>
-                  </div>
-                  <div className="border border-white/5 bg-black/40 p-2 flex flex-col">
-                    <span className="text-[8px] text-white/30 uppercase">Participación s/Líder</span>
-                    <span className="text-sm font-bold">{vipShareOfLeaderStore.toFixed(1)}%</span>
+                  <div className="bg-black/60 border border-white/5 p-4 font-mono text-[10px] leading-relaxed min-h-[90px]">
+                    <span className="text-white/30 font-bold block mb-1">{card.inferenceTitle}</span>
+                    <p className={card.textColorClass}>{card.inferenceText}</p>
                   </div>
                 </div>
-                <div className="bg-black/60 border border-white/5 p-4 font-mono text-[10px] leading-relaxed">
-                  <span className="text-white/30 font-bold block mb-1">INFERENCE_OUTPUT //</span>
-                  <p className={buyerSellerColor}>{buyerSellerInference}</p>
+                <div className="border-t border-white/10 pt-4 mt-6 text-[8px] text-white/30 flex justify-between font-mono">
+                  <span>DATOS: {card.dataSource}</span>
+                  <span>STATUS: {card.status}</span>
                 </div>
               </div>
-              <div className="border-t border-white/10 pt-4 mt-6 text-[8px] text-white/30 flex justify-between font-mono">
-                <span>DATOS: BUYER API + SELLER API</span>
-                <span>STATUS: OK</span>
-              </div>
-            </div>
-
-            {/* Inferencia 3 */}
-            <div className="bg-zinc-950 border-2 border-white/10 p-6 flex flex-col justify-between shadow-[4px_4px_0px_rgba(255,255,255,0.02)]">
-              <div>
-                <span className="text-[10px] text-brand-neon font-bold tracking-widest uppercase block mb-1">
-                  CORRELACIÓN #03 // SATURACIÓN LOGÍSTICA
-                </span>
-                <h3 className="text-lg font-sans font-bold text-white uppercase mb-4">
-                  Capacidad de Flota vs Tráfico
-                </h3>
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  <div className="border border-white/5 bg-black/40 p-2 flex flex-col">
-                    <span className="text-[8px] text-white/30 uppercase">Usuarios Activos (Últ. Día)</span>
-                    <span className="text-sm font-bold">{activeUsersLastDay} usuarios</span>
-                  </div>
-                  <div className="border border-white/5 bg-black/40 p-2 flex flex-col">
-                    <span className="text-[8px] text-white/30 uppercase">Ratio Demanda/Dron</span>
-                    <span className="text-sm font-bold">{usersPerDroneRatio.toFixed(1)} u/dron</span>
-                  </div>
-                </div>
-                <div className="bg-black/60 border border-white/5 p-4 font-mono text-[10px] leading-relaxed">
-                  <span className="text-white/30 font-bold block mb-1">INFERENCE_OUTPUT //</span>
-                  <p className={saturationColor}>{saturationInference}</p>
-                </div>
-              </div>
-              <div className="border-t border-white/10 pt-4 mt-6 text-[8px] text-white/30 flex justify-between font-mono">
-                <span>DATOS: BUYER API + DELIVERY API</span>
-                <span>STATUS: OK</span>
-              </div>
-            </div>
-
-            {/* Inferencia 4 */}
-            <div className="bg-zinc-950 border-2 border-white/10 p-6 flex flex-col justify-between shadow-[4px_4px_0px_rgba(255,255,255,0.02)]">
-              <div>
-                <span className="text-[10px] text-brand-neon font-bold tracking-widest uppercase block mb-1">
-                  CORRELACIÓN #04 // GARANTÍAS COMERCIALES
-                </span>
-                <h3 className="text-lg font-sans font-bold text-white uppercase mb-4">
-                  Liquidez en Escrow vs Ventas
-                </h3>
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  <div className="border border-white/5 bg-black/40 p-2 flex flex-col">
-                    <span className="text-[8px] text-white/30 uppercase">Fondos Escrow</span>
-                    <span className="text-sm font-bold">${totalEscrow.toLocaleString('es-AR')} ARS</span>
-                  </div>
-                  <div className="border border-white/5 bg-black/40 p-2 flex flex-col">
-                    <span className="text-[8px] text-white/30 uppercase">Fondos / Orden</span>
-                    <span className="text-sm font-bold">${escrowPerOrderRatio.toFixed(2)} ARS</span>
-                  </div>
-                </div>
-                <div className="bg-black/60 border border-white/5 p-4 font-mono text-[10px] leading-relaxed">
-                  <span className="text-white/30 font-bold block mb-1">INFERENCE_OUTPUT //</span>
-                  <p className={escrowColor}>{escrowInference}</p>
-                </div>
-              </div>
-              <div className="border-t border-white/10 pt-4 mt-6 text-[8px] text-white/30 flex justify-between font-mono">
-                <span>DATOS: PAYMENTS API + SELLER API</span>
-                <span>STATUS: OK</span>
-              </div>
-            </div>
-
+            ))}
           </div>
+
+          {/* Controles Brutalistas de Paginación */}
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-4 border-2 border-white/10 bg-zinc-950 p-4 shadow-[4px_4px_0px_rgba(255,255,255,0.02)] border-l-brand-neon border-l-2">
+            {activePage > 1 ? (
+              <Link 
+                href={`?page=${activePage - 1}`}
+                className="border-2 border-white text-white hover:bg-white hover:text-black font-mono font-bold uppercase px-4 py-2 text-xs tracking-wider transition-colors duration-100"
+              >
+                ◀ ANTERIOR // PREV
+              </Link>
+            ) : (
+              <span className="border-2 border-white/10 text-white/20 font-mono font-bold uppercase px-4 py-2 text-xs tracking-wider cursor-not-allowed select-none">
+                ◀ ANTERIOR // PREV
+              </span>
+            )}
+
+            <span className="text-brand-neon font-mono text-sm tracking-widest font-bold">
+              [ PAGE 0{activePage} / 0{totalPages} ]
+            </span>
+
+            {activePage < totalPages ? (
+              <Link 
+                href={`?page=${activePage + 1}`}
+                className="border-2 border-white text-white hover:bg-white hover:text-black font-mono font-bold uppercase px-4 py-2 text-xs tracking-wider transition-colors duration-100"
+              >
+                SIGUIENTE // NEXT ▶
+              </Link>
+            ) : (
+              <span className="border-2 border-white/10 text-white/20 font-mono font-bold uppercase px-4 py-2 text-xs tracking-wider cursor-not-allowed select-none">
+                SIGUIENTE // NEXT ▶
+              </span>
+            )}
+          </div>
+
         </div>
       </main>
 
       {/* ── Footer ── */}
-      <footer className="relative z-10 border-t border-white/20 bg-black/90 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-3 text-[9px] text-white/30">
+      <footer className="relative z-10 border-t border-white/20 bg-black/90 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-3 text-[9px] text-white/30 font-mono">
         <div>
           BuscaloYa Ecosistema Centralizado © 2026 // Inferencia Cruzada
         </div>
