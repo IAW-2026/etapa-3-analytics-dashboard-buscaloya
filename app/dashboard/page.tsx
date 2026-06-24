@@ -7,6 +7,36 @@ import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
+interface ActiveUsersDay {
+  date: string;
+  active_users: number;
+}
+
+interface ActivityHour {
+  hour: number;
+  activity_count: number;
+}
+
+interface NewUsersDay {
+  date: string;
+  new_users: number;
+}
+
+interface TopBuyer {
+  name: string;
+  email: string;
+  total_purchases: number;
+  total_spent: number;
+}
+
+interface BuyerAnalyticsData {
+  active_users_per_day: ActiveUsersDay[];
+  activity_by_hour: ActivityHour[];
+  new_users_per_day: NewUsersDay[];
+  top_buyers_by_purchases: TopBuyer[];
+  top_buyers_by_amount: TopBuyer[];
+}
+
 async function getDeliveryAnalytics() {
   const baseUrl = process.env.DELIVERY_APP_URL || 'https://proyecto-b-delivery-buscaloya.vercel.app';
   const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
@@ -23,8 +53,45 @@ async function getDeliveryAnalytics() {
   }
 }
 
+async function getBuyerAnalytics(): Promise<BuyerAnalyticsData | null> {
+  const baseUrl = process.env.BUYER_APP_URL || 'https://proyecto-b-buyer-buscaloya.vercel.app';
+  const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  const url = `${cleanBase}/api`;
+  const token = process.env.BUYER_SERVICE_SECRET;
+  try {
+    const res = await fetch(url, { 
+      cache: 'no-store',
+      headers: {
+        'Authorization': `Bearer ${token || ''}`
+      }
+    });
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    return await res.json();
+  } catch (error) {
+    console.error('Error fetching buyer analytics:', error);
+    return null;
+  }
+}
+
 export default async function Dashboard() {
   const deliveryData = await getDeliveryAnalytics();
+  const buyerData = await getBuyerAnalytics();
+
+  // Cálculos del módulo Buyer (Comprador)
+  const lastActiveCount = (buyerData?.active_users_per_day && buyerData.active_users_per_day.length > 0)
+    ? buyerData.active_users_per_day[buyerData.active_users_per_day.length - 1].active_users 
+    : 0;
+  const buyerNew30d = buyerData?.new_users_per_day
+    ? buyerData.new_users_per_day.reduce((acc: number, curr: NewUsersDay) => acc + curr.new_users, 0)
+    : 0;
+  const topSpenderName = buyerData?.top_buyers_by_amount?.[0]
+    ? `${buyerData.top_buyers_by_amount[0].name.split(' ')[0]} ($${Math.round(buyerData.top_buyers_by_amount[0].total_spent)})`
+    : 'N/A';
+  const topHour = buyerData?.activity_by_hour?.[0]
+    ? `${buyerData.activity_by_hour[0].hour}:00hs`
+    : 'N/A';
 
   // Mocks de información para simular las llamadas a APIs de cada módulo en la etapa 3
   const modules = [
@@ -51,20 +118,30 @@ export default async function Dashboard() {
       id: 'buyer',
       name: 'Buyer Module',
       code: 'BUY_MOD_02',
-      status: 'ONLINE',
-      color: 'neon',
-      apiEndpoint: 'https://proyecto-b-buyer-buscaloya.vercel.app/api',
-      metrics: [
+      status: buyerData ? 'ONLINE' : 'OFFLINE (FALLBACK)',
+      color: buyerData ? 'neon' : 'safety',
+      apiEndpoint: process.env.BUYER_APP_URL 
+        ? `${process.env.BUYER_APP_URL.endsWith('/') ? process.env.BUYER_APP_URL.slice(0, -1) : process.env.BUYER_APP_URL}/api`
+        : 'https://proyecto-b-buyer-buscaloya.vercel.app/api',
+      metrics: buyerData ? [
+        { label: 'ACTIVOS (ÚLT. DÍA)', value: `${lastActiveCount}` },
+        { label: 'NUEVOS (30 DÍAS)', value: `${buyerNew30d}` },
+        { label: 'TOP COMPRADOR', value: topSpenderName },
+      ] : [
         { label: 'CLIENTES CONECTADOS', value: '458' },
         { label: 'CARRITOS ACTIVOS', value: '32' },
         { label: 'VALORACIONES (CSAT)', value: '4.85 / 5.00' },
       ],
-      logs: [
+      logs: buyerData ? [
+        `Hora pico tráfico: ${topHour} (${buyerData.activity_by_hour[0]?.activity_count || 0} eventos)`,
+        `Top Compras: ${buyerData.top_buyers_by_purchases[0]?.name || 'N/A'} (${buyerData.top_buyers_by_purchases[0]?.total_purchases || 0} ord.)`,
+        `Actividad total logs: ${buyerData.activity_by_hour.reduce((acc: number, curr: ActivityHour) => acc + curr.activity_count, 0)} reg.`,
+      ] : [
         'Establishing client-side websocket links... OK',
         'Syncing buyer order tracker... ONLINE',
         'Telemetry feedback listener active... OK',
       ],
-      progress: 95,
+      progress: buyerData ? 100 : 95,
     },
     {
       id: 'payments',
