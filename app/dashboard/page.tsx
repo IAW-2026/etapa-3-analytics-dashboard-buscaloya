@@ -18,6 +18,9 @@ import {
   DeliveryAnalyticsData,
   DashboardModule
 } from '@/lib/api';
+import { DashboardHeader } from '@/app/ui/layout/DashboardHeader';
+import { DashboardFooter } from '@/app/ui/layout/DashboardFooter';
+import { ModuleCard } from '@/app/ui/dashboard/ModuleCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -195,140 +198,21 @@ export default async function Dashboard() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden bg-black text-white font-mono">
-      
-      {/* ── Background Grid: Cuadrícula Industrial ── */}
-      <div 
-        className="absolute top-0 left-0 w-full h-full opacity-[0.05] pointer-events-none" 
-        suppressHydrationWarning
-        style={{ 
-          backgroundImage: 'linear-gradient(0deg, transparent 24%, #ffffff 25%, #ffffff 26%, transparent 27%, transparent 74%, #ffffff 75%, #ffffff 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, #ffffff 25%, #ffffff 26%, transparent 27%, transparent 74%, #ffffff 75%, #ffffff 76%, transparent 77%, transparent)', 
-          backgroundSize: '40px 40px' 
-        }}
-      />
-
-      {/* ── Scanline Effect ── */}
-      <div 
-        className="absolute top-0 left-0 w-full h-[2px] bg-brand-neon/10 pointer-events-none animate-scanline z-50"
-      />
-
-      {/* ── Header: Divisor Brutalista + Controles de Retorno ── */}
-      <header className="relative z-10 border-b-2 border-white/20 bg-black/80 backdrop-blur-sm">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-between px-6 py-4 gap-4">
-          <div className="flex items-center gap-4">
-            <span className="text-brand-neon text-lg font-bold tracking-[0.2em] uppercase">
-              ◆ ANALYTICS
-            </span>
-            <span className="text-white/20">/</span>
-            <span className="text-white font-sans text-xl uppercase tracking-tighter">
-              Dashboard_Central
-            </span>
-          </div>
-
-          <div className="flex items-center gap-6 justify-between sm:justify-end">
-            <div className="flex items-center gap-3">
-              <span className="brutalist-tag animate-pulse-neon">CONTROL // MONITOR</span>
-              <div className="w-2.5 h-2.5 bg-brand-neon animate-pulse-neon" />
-            </div>
-            <div className="flex items-center gap-3">
-              <Link href="/dashboard/inference" className="border-2 border-brand-neon text-brand-neon hover:bg-brand-neon hover:text-black font-mono font-bold uppercase px-4 py-2 text-xs tracking-wider transition-all duration-100">
-                ⚡ Cruzar Datos
-              </Link>
-              <Link href="/" className="border-2 border-white text-white hover:bg-white hover:text-black font-mono font-bold uppercase px-4 py-2 text-xs tracking-wider transition-colors duration-100">
-                &lt;// RETORNAR
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
+    <>
+      <DashboardHeader />
 
       {/* ── Main Panel Grid ── */}
       <main className="flex-1 p-6 md:p-8 lg:p-12 relative z-10 overflow-y-auto">
         
         {/* 4 Cuadrículas Brutalistas */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {modules.map((mod) => {
-            const isNeon = mod.color === 'neon';
-            const accentClass = isNeon ? 'text-brand-neon border-brand-neon' : 'text-brand-safety border-brand-safety';
-            const bgHover = isNeon ? 'hover:shadow-[8px_8px_0px_rgba(0,255,0,0.15)]' : 'hover:shadow-[8px_8px_0px_rgba(255,77,0,0.15)]';
-            
-            return (
-              <Link 
-                href={`/dashboard/detail/${mod.id}`}
-                key={mod.id} 
-                className={`bg-zinc-950 border-2 border-white/10 hover:border-current transition-all duration-150 flex flex-col justify-between min-h-[360px] p-6 shadow-[6px_6px_0px_rgba(255,255,255,0.03)] cursor-pointer block ${accentClass} ${bgHover}`}
-              >
-                
-                {/* Cabecera del Módulo */}
-                <div className="border-b border-white/10 pb-4 mb-4">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-[10px] text-white/40 font-mono tracking-widest">
-                      {mod.code}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[9px] font-bold tracking-wider px-2 py-0.5 border ${accentClass}`}>
-                        {mod.status}
-                      </span>
-                      <div className={`w-2 h-2 rounded-full ${isNeon ? 'bg-brand-neon' : 'bg-brand-safety'} animate-pulse`} />
-                    </div>
-                  </div>
-                  <h4 className="text-2xl font-sans text-white uppercase tracking-tighter font-black">
-                    {mod.name}
-                  </h4>
-                </div>
-
-                {/* Métricas */}
-                <div className="flex-1 flex flex-col justify-center gap-4 py-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {mod.metrics.map((metric, idx) => (
-                      <div key={idx} className="border border-white/5 bg-black/40 p-3 flex flex-col gap-1">
-                        <span className="text-[8px] text-white/30 tracking-wider uppercase font-bold leading-tight">
-                          {metric.label}
-                        </span>
-                        <span className={`text-base font-bold tracking-tighter ${metric.warning ? 'text-brand-safety' : 'text-white'}`}>
-                          {metric.value}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Terminal logs de simulación */}
-                <div className="bg-black/60 border border-white/5 p-3 my-4 font-mono text-[9px] text-white/50 flex flex-col gap-1">
-                  <span className="text-white/30 font-bold block mb-1">CONSOLE_OUTPUT //</span>
-                  {mod.logs.map((log, idx) => (
-                    <div key={idx} className="truncate">
-                      <span className={isNeon ? 'text-brand-neon' : 'text-brand-safety'}>&gt;</span> {log}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Footer del Módulo */}
-                <div className="border-t border-white/10 pt-4 flex justify-between items-center text-[8px] text-white/30 tracking-widest font-mono">
-                  <span>API_LINK:</span>
-                  <span className="hover:text-white transition-colors duration-75 uppercase truncate max-w-[70%] text-right font-bold">
-                    {mod.apiEndpoint}
-                  </span>
-                </div>
-
-              </Link>
-            );
-          })}
+          {modules.map((mod) => (
+            <ModuleCard key={mod.id} mod={mod} />
+          ))}
         </div>
       </main>
 
-      {/* ── Footer ── */}
-      <footer className="relative z-10 border-t border-white/20 bg-black/90 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-3 text-[9px] text-white/30">
-        <div>
-          BuscaloYa Ecosistema Centralizado © 2026 // Panel Consolidado
-        </div>
-        <div className="flex gap-4">
-          <span>SECURE_LINK: OK</span>
-          <span>|</span>
-          <span className="text-brand-neon">STATUS: STABLE_RUN</span>
-        </div>
-      </footer>
-
-    </div>
+      <DashboardFooter label="Panel Consolidado" status="STABLE_RUN" />
+    </>
   );
 }

@@ -12,22 +12,11 @@ import {
   TopSellingStore
 } from '@/lib/api';
 
-export const dynamic = 'force-dynamic';
+import { DashboardHeader } from '@/app/ui/layout/DashboardHeader';
+import { DashboardFooter } from '@/app/ui/layout/DashboardFooter';
+import { InferenceCard, InferenceCardData } from '@/app/ui/inference/InferenceCard';
 
-interface InferenceCard {
-  id: number;
-  correlationCode: string;
-  title: string;
-  indicators: {
-    label: string;
-    value: string;
-  }[];
-  inferenceTitle: string;
-  inferenceText: string;
-  textColorClass: string;
-  dataSource: string;
-  status: string;
-}
+export const dynamic = 'force-dynamic';
 
 export default async function InferencePage({
   searchParams,
@@ -220,7 +209,7 @@ export default async function InferencePage({
 
   // ──── DEFINICIÓN Y SEGMENTACIÓN DE MÓDULOS (INFERENCIAS) ────
 
-  const allInferences: InferenceCard[] = [
+  const allInferences: InferenceCardData[] = [
     {
       id: 1,
       correlationCode: 'CORRELACIÓN #01 // LOGÍSTICA & RETORNO FINANCIERO',
@@ -346,47 +335,14 @@ export default async function InferencePage({
   const paginatedInferences = allInferences.slice(startIndex, startIndex + cardsPerPage);
 
   return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden bg-black text-white font-mono">
-      
-      {/* ── Background Grid ── */}
-      <div 
-        className="absolute top-0 left-0 w-full h-full opacity-[0.05] pointer-events-none" 
-        suppressHydrationWarning
-        style={{ 
-          backgroundImage: 'linear-gradient(0deg, transparent 24%, #ffffff 25%, #ffffff 26%, transparent 27%, transparent 74%, #ffffff 75%, #ffffff 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, #ffffff 25%, #ffffff 26%, transparent 27%, transparent 74%, #ffffff 75%, #ffffff 76%, transparent 77%, transparent)', 
-          backgroundSize: '40px 40px' 
-        }}
+    <>
+      <DashboardHeader 
+        title="Algoritmos_Cruce_Inferencia" 
+        tagLabel="PROCESSOR // RUNNING" 
+        showInferenceLink={false} 
+        backLink="/dashboard" 
+        backText="<// VOLVER AL PANEL" 
       />
-
-      {/* ── Scanline Effect ── */}
-      <div 
-        className="absolute top-0 left-0 w-full h-[2px] bg-brand-neon/10 pointer-events-none animate-scanline z-50"
-      />
-
-      {/* ── Header ── */}
-      <header className="relative z-10 border-b-2 border-white/20 bg-black/80 backdrop-blur-sm">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-between px-6 py-4 gap-4">
-          <div className="flex items-center gap-4">
-            <span className="text-brand-neon text-lg font-bold tracking-[0.2em] uppercase">
-              ◆ ANALYTICS
-            </span>
-            <span className="text-white/20">/</span>
-            <span className="text-white font-sans text-xl uppercase tracking-tighter">
-              Algoritmos_Cruce_Inferencia
-            </span>
-          </div>
-
-          <div className="flex items-center gap-6 justify-between sm:justify-end">
-            <div className="flex items-center gap-3">
-              <span className="brutalist-tag animate-pulse-neon">PROCESSOR // RUNNING</span>
-              <div className="w-2.5 h-2.5 bg-brand-neon animate-pulse-neon" />
-            </div>
-            <Link href="/dashboard" className="border-2 border-white text-white hover:bg-white hover:text-black font-mono font-bold uppercase px-4 py-2 text-xs tracking-wider transition-colors duration-100">
-              &lt;// VOLVER AL PANEL
-            </Link>
-          </div>
-        </div>
-      </header>
 
       {/* ── Main Panel Grid ── */}
       <main className="flex-1 p-6 md:p-8 lg:p-12 relative z-10 overflow-y-auto">
@@ -405,35 +361,7 @@ export default async function InferencePage({
           {/* Grilla de Inferencias */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {paginatedInferences.map((card) => (
-              <div 
-                key={card.id}
-                className="bg-zinc-950 border-2 border-white/10 p-6 flex flex-col justify-between shadow-[4px_4px_0px_rgba(255,255,255,0.02)]"
-              >
-                <div>
-                  <span className="text-[10px] text-brand-neon font-bold tracking-widest uppercase block mb-1">
-                    {card.correlationCode}
-                  </span>
-                  <h3 className="text-lg font-sans font-bold text-white uppercase mb-4">
-                    {card.title}
-                  </h3>
-                  <div className="grid grid-cols-2 gap-2 mb-4">
-                    {card.indicators.map((ind, i) => (
-                      <div key={i} className="border border-white/5 bg-black/40 p-2 flex flex-col">
-                        <span className="text-[8px] text-white/30 uppercase">{ind.label}</span>
-                        <span className="text-sm font-bold">{ind.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="bg-black/60 border border-white/5 p-4 font-mono text-[10px] leading-relaxed min-h-[90px]">
-                    <span className="text-white/30 font-bold block mb-1">{card.inferenceTitle}</span>
-                    <p className={card.textColorClass}>{card.inferenceText}</p>
-                  </div>
-                </div>
-                <div className="border-t border-white/10 pt-4 mt-6 text-[8px] text-white/30 flex justify-between font-mono">
-                  <span>DATOS: {card.dataSource}</span>
-                  <span>STATUS: {card.status}</span>
-                </div>
-              </div>
+              <InferenceCard key={card.id} card={card} />
             ))}
           </div>
 
@@ -473,18 +401,7 @@ export default async function InferencePage({
         </div>
       </main>
 
-      {/* ── Footer ── */}
-      <footer className="relative z-10 border-t border-white/20 bg-black/90 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-3 text-[9px] text-white/30 font-mono">
-        <div>
-          BuscaloYa Ecosistema Centralizado © 2026 // Inferencia Cruzada
-        </div>
-        <div className="flex gap-4">
-          <span>SECURE_LINK: OK</span>
-          <span>|</span>
-          <span className="text-brand-neon">STATUS: ANALYSIS_COMPLETE</span>
-        </div>
-      </footer>
-
-    </div>
+      <DashboardFooter label="Inferencia Cruzada" status="ANALYSIS_COMPLETE" />
+    </>
   );
 }
