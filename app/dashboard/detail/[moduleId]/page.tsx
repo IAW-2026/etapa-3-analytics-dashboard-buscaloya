@@ -75,6 +75,30 @@ export default async function ModuleDetailPage({ params }: DetailPageProps) {
   // 2. Buyer Fallbacks
   const activeBuyerData: BuyerAnalyticsData = buyerData || fallbackBuyerData;
 
+  // Si estamos viendo el módulo buyer, rellenamos los días faltantes con 0 para los últimos 90 días
+  if (moduleId === 'buyer') {
+    const fillMissingDates = (data: any[], dateKey: string, valKey: string, days: number = 90) => {
+      if (!data || data.length === 0) return [];
+      const maxDateStr = data.reduce((max, item) => item[dateKey] > max ? item[dateKey] : max, data[0][dateKey]);
+      const endDate = new Date(maxDateStr + 'T00:00:00');
+      if (isNaN(endDate.getTime())) return data;
+
+      const startDate = new Date(endDate);
+      startDate.setDate(startDate.getDate() - days + 1);
+
+      const dataMap = new Map(data.map(d => [d[dateKey], d]));
+      const result = [];
+      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        const dateStr = d.toISOString().split('T')[0];
+        result.push(dataMap.has(dateStr) ? dataMap.get(dateStr) : { [dateKey]: dateStr, [valKey]: 0 });
+      }
+      return result;
+    };
+
+    activeBuyerData.active_users_per_day = fillMissingDates(activeBuyerData.active_users_per_day, 'date', 'active_users', 90);
+    activeBuyerData.new_users_per_day = fillMissingDates(activeBuyerData.new_users_per_day, 'date', 'new_users', 90);
+  }
+
   // 3. Payments Fallbacks
   const activePaymentsData: PaymentsAnalyticsData = paymentsData || fallbackPaymentsData;
 
@@ -221,7 +245,7 @@ export default async function ModuleDetailPage({ params }: DetailPageProps) {
           {moduleId === 'buyer' && (
             <div className="flex flex-col gap-8">
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="flex flex-col gap-8">
                 {/* Gráfico de Barras Verticales de Usuarios Activos */}
                 <div className="bg-zinc-950 border-2 border-white/10 p-6 flex flex-col justify-between shadow-[4px_4px_0px_rgba(255,255,255,0.02)]">
                   <div>
@@ -232,25 +256,31 @@ export default async function ModuleDetailPage({ params }: DetailPageProps) {
                       Usuarios Activos por Día
                     </h3>
 
-                    {/* Brutalist Vertical Bar Chart */}
-                    <div className="h-64 flex items-end justify-around border-b border-l border-white/20 pb-4 pl-4 gap-4 mt-8">
+                    {/* Brutalist Vertical Bar Chart (Updated for 90 days) */}
+                    <div className="h-64 flex items-end border-b border-l border-white/20 pb-4 pl-4 gap-[1px] sm:gap-[2px] mt-8 overflow-hidden">
                       {activeBuyerData.active_users_per_day.map((day) => {
                         const maxUsers = Math.max(...activeBuyerData.active_users_per_day.map(u => u.active_users), 1);
                         const heightPercent = (day.active_users / maxUsers) * 100;
                         return (
-                          <div key={day.date} className="flex flex-col items-center flex-1 h-full justify-end group">
-                            <div className="text-[9px] text-cyan-400 font-bold mb-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              {day.active_users}
+                          <div key={day.date} className="flex flex-col items-center flex-1 h-full group min-w-0">
+                            <div className="h-4 flex items-end justify-center w-full mb-1">
+                              <div className="text-[9px] text-cyan-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                {day.active_users}
+                              </div>
                             </div>
-                            <div
-                              style={{ height: `${heightPercent}%` }}
-                              className="bg-cyan-400 w-full border border-black hover:bg-white transition-all duration-300 relative"
-                            >
-                              <div className="absolute inset-0 bg-white/20 mix-blend-overlay"></div>
+                            <div className="flex-1 w-full flex items-end">
+                              <div
+                                style={{ height: `${heightPercent}%` }}
+                                className="bg-cyan-400 w-full border border-cyan-400 hover:bg-white transition-all duration-300 relative"
+                              >
+                                <div className="absolute inset-0 bg-white/20 mix-blend-overlay"></div>
+                              </div>
                             </div>
-                            <span className="text-[8px] text-white/40 mt-2 font-mono whitespace-nowrap overflow-hidden text-ellipsis max-w-full">
-                              {day.date.split('-').slice(1).join('/')}
-                            </span>
+                            <div className="h-4 flex items-start justify-center w-full mt-1">
+                              <span className="text-[8px] text-white/40 font-mono whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                                {day.date.split('-').slice(1).join('/')}
+                              </span>
+                            </div>
                           </div>
                         );
                       })}
@@ -271,25 +301,31 @@ export default async function ModuleDetailPage({ params }: DetailPageProps) {
                       Nuevos Usuarios por Día
                     </h3>
 
-                    {/* Brutalist Vertical Bar Chart */}
-                    <div className="h-64 flex items-end justify-around border-b border-l border-white/20 pb-4 pl-4 gap-4 mt-8">
+                    {/* Brutalist Vertical Bar Chart (Updated for 90 days) */}
+                    <div className="h-64 flex items-end border-b border-l border-white/20 pb-4 pl-4 gap-[1px] sm:gap-[2px] mt-8 overflow-hidden">
                       {activeBuyerData.new_users_per_day.map((day) => {
                         const maxNew = Math.max(...activeBuyerData.new_users_per_day.map(u => u.new_users), 1);
                         const heightPercent = (day.new_users / maxNew) * 100;
                         return (
-                          <div key={day.date} className="flex flex-col items-center flex-1 h-full justify-end group">
-                            <div className="text-[9px] text-cyan-400 font-bold mb-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              {day.new_users}
+                          <div key={day.date} className="flex flex-col items-center flex-1 h-full group min-w-0">
+                            <div className="h-4 flex items-end justify-center w-full mb-1">
+                              <div className="text-[9px] text-cyan-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                {day.new_users}
+                              </div>
                             </div>
-                            <div
-                              style={{ height: `${heightPercent}%` }}
-                              className="bg-cyan-400/70 w-full border border-cyan-400 hover:bg-cyan-400 transition-all duration-300 relative"
-                            >
-                              <div className="absolute inset-0 bg-white/10 mix-blend-overlay"></div>
+                            <div className="flex-1 w-full flex items-end">
+                              <div
+                                style={{ height: `${heightPercent}%` }}
+                                className="bg-cyan-400/70 w-full border border-cyan-400 hover:bg-cyan-400 transition-all duration-300 relative"
+                              >
+                                <div className="absolute inset-0 bg-white/10 mix-blend-overlay"></div>
+                              </div>
                             </div>
-                            <span className="text-[8px] text-white/40 mt-2 font-mono whitespace-nowrap overflow-hidden text-ellipsis max-w-full">
-                              {day.date.split('-').slice(1).join('/')}
-                            </span>
+                            <div className="h-4 flex items-start justify-center w-full mt-1">
+                              <span className="text-[8px] text-white/40 font-mono whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                                {day.date.split('-').slice(1).join('/')}
+                              </span>
+                            </div>
                           </div>
                         );
                       })}

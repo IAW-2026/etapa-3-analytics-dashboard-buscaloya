@@ -70,7 +70,7 @@ function formatBuyerModule(buyerData: BuyerAnalyticsData | null): DashboardModul
   const lastActiveCount = (buyerData?.active_users_per_day && buyerData.active_users_per_day.length > 0)
     ? buyerData.active_users_per_day[buyerData.active_users_per_day.length - 1].active_users 
     : 0;
-  const buyerNew30d = buyerData?.new_users_per_day
+  const buyerNew90d = buyerData?.new_users_per_day
     ? buyerData.new_users_per_day.reduce((acc: number, curr: NewUsersDay) => acc + curr.new_users, 0)
     : 0;
   const topSpenderName = buyerData?.top_buyers_by_amount?.[0]
@@ -91,7 +91,7 @@ function formatBuyerModule(buyerData: BuyerAnalyticsData | null): DashboardModul
       : 'https://proyecto-b-buyer-buscaloya.vercel.app/api/analytics',
     metrics: buyerData ? [
       { label: 'ACTIVOS (ÚLT. DÍA)', value: `${lastActiveCount}` },
-      { label: 'NUEVOS (30 DÍAS)', value: `${buyerNew30d}` },
+      { label: 'NUEVOS (90 DÍAS)', value: `${buyerNew90d}` },
       { label: 'TOP COMPRADOR', value: topSpenderName },
     ] : [
       { label: 'CLIENTES CONECTADOS', value: '458' },
